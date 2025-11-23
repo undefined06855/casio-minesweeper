@@ -66,14 +66,16 @@ Board* Board_create(int width, int height, int mines) {
 }
 
 void Board_draw(Board* board) {
-    // TODO: text printing doesn't work whatsoever!
+    // TODO: text printing only works sometimes?
 
     if (board->died) {
+        Bdisp_AllClr_VRAM();
         Bdisp_MMPrint(0, 0, (unsigned char*)"you lose!", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
         return;
     }
 
     if (board->won) {
+        Bdisp_AllClr_VRAM();
         Bdisp_MMPrint(0, 0, (unsigned char*)"you win!", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
         return;
     }
