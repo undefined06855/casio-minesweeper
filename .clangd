@@ -1,0 +1,4 @@
+CompileFlags:
+  Add: [
+    "-IC:/Users/undefined0/projects/PrizmSDK-win-0.6/include"
+  ]

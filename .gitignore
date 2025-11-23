@@ -1,0 +1,6 @@
+.vscode/
+build/
+
+# compiled files (for some reason not placed in the build/ folder - thanks old ass SDK)
+*.g3a
+*.bin
