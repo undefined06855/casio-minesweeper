@@ -15,7 +15,6 @@ enum TileType {
     kTileTypeSeven = 7,
     kTileTypeEight = 8,
     kTileTypeBomb = 9,
-    kTileTypeFlag = 10,
 
     kTileTypeCoveredBomb = kTileTypeBomb | 1 << 4,
 };

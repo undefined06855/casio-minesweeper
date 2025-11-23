@@ -185,6 +185,7 @@ void Board_revealSingleTile(Board* board, int row, int col) {
 
         if (flagCount == *cell) {
             Board_revealSurroundingTiles(board, row, col);
+            Board_checkWinCondition(board);
         }
 
         return;
@@ -194,7 +195,7 @@ void Board_revealSingleTile(Board* board, int row, int col) {
 
     if (*cell == kTileTypeZero) {
         // reveal surrounding tiles
-        Board_revealSurroundingTiles(board, board->row, board->col);
+        Board_revealSurroundingTiles(board, row, col);
         Board_checkWinCondition(board);
         return;
     }

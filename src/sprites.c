@@ -360,16 +360,16 @@ const color_t* sprites[64] = {
     0x0,
     0x0,
     // 32:
-    0x0, // set bit 1 << 5 to flag the tile
-    0x0, // but these are the uncovered tiles, which cant be flagged!
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
-    0x0,
+    spr_flag, // set bit 1 << 5 to flag the tile
+    spr_flag, // but these are the uncovered tiles, which cant be flagged!
+    spr_flag,
+    spr_flag,
+    spr_flag,
+    spr_flag,
+    spr_flag,
+    spr_flag,
+    spr_flag,
+    spr_flag,
     0x0,
     0x0,
     0x0,
