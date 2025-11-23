@@ -2,7 +2,7 @@
 #include <fxcg/display.h>
 
 static const int COVER_TILE_BIT = 1 << 4;
-static const int FLAG_TILE_BIT = 1 << 4;
+static const int FLAG_TILE_BIT = 1 << 5;
 
 enum TileType {
     kTileTypeZero = 0,

@@ -67,7 +67,7 @@ Board* Board_create(int width, int height, int mines) {
 
 void Board_draw(Board* board) {
     // TODO: text printing doesn't work whatsoever!
-    
+
     if (board->died) {
         Bdisp_MMPrint(0, 0, (unsigned char*)"you lose!", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
         return;
@@ -130,7 +130,7 @@ void Board_handleKeypress(Board* board, int key) {
             break;
 
         case KEY_CTRL_F2:
-            Board_reveal(board);
+            Board_revealSingleTile(board, board->row, board->col);
             break;
     }
 }
@@ -146,23 +146,23 @@ void Board_flag(Board* board) {
     *cell ^= FLAG_TILE_BIT;
 }
 
-void Board_reveal(Board* board) {
-    char* cell = Board_currentCell(board);
+void Board_revealSingleTile(Board* board, int row, int col) {
+    char* cell = &board->data[row*board->width + col];
 
+    // unset flag bit if it is set
     if (*cell & FLAG_TILE_BIT) {
-        // unset flag
-        *cell ^= FLAG_TILE_BIT;
+        // *cell ^= FLAG_TILE_BIT;
         return;
     }
 
+    // if this cell is uncovered, check the surrounding flag count
+    // if it is equal to the cell value, reveal all tiles around the cell
     if (!(*cell & COVER_TILE_BIT)) {
-        // TODO: check flag count surrounding, if it's satisfied then reveal all
-        // surrounding tiles
-        *cell &= ~COVER_TILE_BIT; // unset covered bit
+        board->data[row*board->width + col] &= ~COVER_TILE_BIT; // unset covered bit
+
+        if (*cell == 0) return;
 
         char flagCount = 0;
-        int row = board->row;
-        int col = board->col;
         int width = board->width;
         int height = board->height;
 
@@ -182,7 +182,7 @@ void Board_reveal(Board* board) {
         }
 
         if (flagCount == *cell) {
-            Board_revealSurroundingTiles(board);
+            Board_revealSurroundingTiles(board, row, col);
         }
 
         return;
@@ -192,7 +192,9 @@ void Board_reveal(Board* board) {
 
     if (*cell == kTileTypeZero) {
         // reveal surrounding tiles
-        Board_forceRevealSurroundingTiles(board);
+        Board_revealSurroundingTiles(board, board->row, board->col);
+        Board_checkWinCondition(board);
+        return;
     }
 
     if (*cell == kTileTypeBomb) {
@@ -204,12 +206,25 @@ void Board_reveal(Board* board) {
     Board_checkWinCondition(board);
 }
 
-void Board_revealSurroundingTiles(Board* board) {
-    // TODO:
-}
+// will reveal all surrounding tiles that aren't flagged
+void Board_revealSurroundingTiles(Board* board, int row, int col) {
+    int width = board->width;
+    int height = board->height;
 
-void Board_forceRevealSurroundingTiles(Board* board) {
-    // TODO:
+    if (row != 0) {
+        if (col != 0 &&       !(board->data[(row-1)*width + col-1] & FLAG_TILE_BIT)) { Board_revealSingleTile(board, row - 1, col - 1); }
+        if (                  !(board->data[(row-1)*width + col] & FLAG_TILE_BIT)) { Board_revealSingleTile(board, row - 1, col); }
+        if (col != width-1 && !(board->data[(row-1)*width + col+1] & FLAG_TILE_BIT)) { Board_revealSingleTile(board, row - 1, col + 1); }
+    }
+
+    if (col != 0 &&       !(board->data[row*width + col-1] & FLAG_TILE_BIT)) { Board_revealSingleTile(board, row, col - 1); }
+    if (col != width-1 && !(board->data[row*width + col+1] & FLAG_TILE_BIT)) { Board_revealSingleTile(board, row, col + 1); }
+
+    if (row != height - 1) {
+        if (col != 0 &&       !(board->data[(row+1)*width + col-1] & FLAG_TILE_BIT)) { Board_revealSingleTile(board, row + 1, col - 1); }
+        if (                  !(board->data[(row+1)*width + col] & FLAG_TILE_BIT)) { Board_revealSingleTile(board, row + 1, col); }
+        if (col != width-1 && !(board->data[(row+1)*width + col+1] & FLAG_TILE_BIT)) { Board_revealSingleTile(board, row + 1, col + 1); }
+    }
 }
 
 void Board_checkWinCondition(Board* board) {

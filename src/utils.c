@@ -4,7 +4,7 @@ void drawSpriteAtPos(enum TileType sprite, int x, int y) {
     const color_t* data = getSprite(sprite);
 
     if (data == 0x0) {
-        data = getSprite(kTileTypeBomb); // !!
+        data = getSprite(kTileTypeEight); // !!
     }
 
     VRAM_CopySprite(data, x, y + 24, 24, 24);
