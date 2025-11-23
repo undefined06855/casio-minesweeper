@@ -10,6 +10,11 @@ void drawSpriteAtPos(enum TileType sprite, int x, int y) {
     VRAM_CopySprite(data, x, y + 24, 24, 24);
 }
 
+// oh this was chatgpt by the way just letting you all know
+// there is   zero reason to write this myself
+// still wondering if the calculator comes with a random number generator that
+// could probably be seeded better?
+
 static int rng_state = 1; // seed however you want
 
 int rand() {
