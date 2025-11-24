@@ -193,7 +193,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
 
     // if it's flagged, unflag
     if (Board_cellIsFlagged(cell)) {
-        *cell &= COVER_TILE_BIT;
+        *cell ^= COVER_TILE_BIT;
 
         // if we NEED to reveal this cell, continue going, else just stop here
         if (!force) return;
