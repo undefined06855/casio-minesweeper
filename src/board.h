@@ -15,9 +15,12 @@ typedef struct {
 
     bool died;
     bool won;
+
+    bool firstReveal;
 } Board;
 
-Board* Board_create(int width, int height, int mines);
+void Board_create(Board* board, int width, int height, int mines);
+void Board_free(Board* board);
 void Board_draw(Board* board);
 void Board_handleKeypress(Board* board, int key);
 

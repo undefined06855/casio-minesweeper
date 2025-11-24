@@ -10,9 +10,7 @@ void _incrementMineCount(Board* board, int row, int col, void* mineCount) {
     }
 }
 
-Board* Board_create(int width, int height, int mines) {
-    Board* board = sys_malloc(sizeof(Board));
-
+void Board_create(Board* board, int width, int height, int mines) {
     board->width = width;
     board->height = height;
     board->mines = mines;
@@ -23,12 +21,15 @@ Board* Board_create(int width, int height, int mines) {
     board->offsetX = 0;
     board->offsetY = 0;
 
+    board->firstReveal = true;
+
     // calloc reimplementation (sys_calloc crashes???)
     board->data = sys_malloc(width * height);
     for (int i = 0; i < width * height; i++) {
         board->data[i] = 0;
     }
 
+    // place mines
     for (int i = 0; i < mines; i++) {
         int row = randrange(0, height);
         int col = randrange(0, width);
@@ -43,20 +44,24 @@ Board* Board_create(int width, int height, int mines) {
         *cell = kTileTypeBomb | COVER_TILE_BIT;
     }
 
+    // and place other tiles around the mines
     for (int row = 0; row < height; row++) {
         for (int col = 0; col < width; col++) {
-            char* tile = Board_getCell(board, row, col);
+            char* cell = Board_getCell(board, row, col);
 
-            if (*tile == kTileTypeCoveredBomb) continue;
+            if (*cell == kTileTypeCoveredBomb) continue;
 
             char mineCount = 0;
             Board_runForSurroundingCells(board, row, col, _incrementMineCount, &mineCount);
 
-            *tile = mineCount | COVER_TILE_BIT;
+            *cell = mineCount | COVER_TILE_BIT;
         }
     }
+}
 
-    return board;
+void Board_free(Board* board) {
+    sys_free(board->data);
+    sys_free(board);
 }
 
 void Board_draw(Board* board) {
@@ -84,12 +89,13 @@ void Board_draw(Board* board) {
         TEXT_COLOR_BLACK
     );
 
+    // TODO: make these better
     if (board->died) {
-        Bdisp_MMPrint(0, 0, (unsigned char*)"you lose!", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
+        Bdisp_MMPrint(40, 40, (unsigned char*)"you lose!", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
     }
 
     if (board->won) {
-        Bdisp_MMPrint(0, 0, (unsigned char*)"you win!", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
+        Bdisp_MMPrint(40, 40, (unsigned char*)"you win!", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
     }
 }
 
@@ -139,32 +145,62 @@ void Board_flag(Board* board, int row, int col) {
     *cell ^= FLAG_TILE_BIT;
 }
 
+void _revealCellIfNotFlagged(Board* board, int row, int col, void* _unused) {
+    char* cell = Board_getCell(board, row, col);
+    if (!Board_cellIsFlagged(cell) && Board_cellIsCovered(cell)) {
+        Board_revealSingleCell(board, row, col, true);
+    }
+}
+
+void _incrementFlagCount(Board* board, int row, int col, void* flagCount) {
+    if (*Board_getCell(board, row, col) & FLAG_TILE_BIT) {
+        (*(char*)flagCount)++;
+    }
+}
+
 void Board_revealSingleCell(Board* board, int row, int col, bool force) {
     char* cell = Board_getCell(board, row, col);
+
+    if (board->firstReveal) {
+        // oooh exciting exciting
+        board->firstReveal = false;
+
+        // regenerate everything while first click is mine
+        while (*cell == kTileTypeCoveredBomb) {
+            Board* newBoard = sys_malloc(sizeof(Board));
+            Board_create(newBoard, board->width, board->height, board->mines);
+
+            sys_free(board->data);
+            board->data = newBoard->data;
+            sys_free(newBoard); // does not free newboard->data! that's what Board_free does!
+
+            cell = Board_getCell(board, row, col);
+        }
+    }
+
+    // if it's not covered, count surrounding bombs
+    // then if it's equal to the value on the tile, auto reveal non-flagged cells
+    if (!Board_cellIsCovered(cell) && *cell != kTileTypeZero) {
+        char flagCount = 0;
+        Board_runForSurroundingCells(board, row, col, _incrementFlagCount, &flagCount);
+
+        if (*cell == flagCount) {
+            Board_runForSurroundingCells(board, row, col, _revealCellIfNotFlagged, 0x0);
+        }
+
+        return;
+    }
 
     // if it's flagged, unflag
     if (Board_cellIsFlagged(cell)) {
         *cell &= COVER_TILE_BIT;
 
-        // if we NEED to reveal this tile, continue going, else just stop here
+        // if we NEED to reveal this cell, continue going, else just stop here
         if (!force) return;
-    }
-
-    // if it's not covered, count surrounding bombs
-    // then if it's equal to the value on the cell, auto reveal non-flagged tiles
-    if (!Board_cellIsCovered(cell)) {
-
     }
 
     *cell &= ~COVER_TILE_BIT; // unset covered bit
     *cell &= ~FLAG_TILE_BIT;
-
-    if (*cell == kTileTypeZero) {
-        // reveal surrounding tiles
-        Board_revealSurroundingCells(board, row, col);
-        Board_checkWinCondition(board);
-        return;
-    }
 
     if (*cell == kTileTypeBomb) {
         // uh oh!
@@ -173,6 +209,12 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
     }
 
     Board_checkWinCondition(board);
+
+    if (*cell == kTileTypeZero) {
+        // reveal surrounding cells
+        Board_revealSurroundingCells(board, row, col);
+        return;
+    }
 }
 
 
@@ -218,7 +260,7 @@ bool Board_cellIsCovered(char* cell) {
 }
 
 void Board_checkWinCondition(Board* board) {
-    // if any tiles are covered still and aren't mines, return
+    // if any cells are covered still and aren't mines, return
     for (int i = 0; i < board->width * board->height; i++) {
         if (Board_cellIsCovered(&board->data[i]) && board->data[i] != kTileTypeCoveredBomb) return;
     }
