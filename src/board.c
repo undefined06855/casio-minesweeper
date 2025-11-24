@@ -65,12 +65,14 @@ void Board_free(Board* board) {
 }
 
 void Board_draw(Board* board) {
+    // draw board
     for (int row = 0; row < board->height; row++) {
         for (int col = 0; col < board->width; col++) {
             drawSpriteAtPos(*Board_getCell(board, row, col), 24*col + board->offsetX, 24*row + board->offsetY);
         }
     }
 
+    // draw cursor (maybe make this a sprite or look better in general?)
     int x = 24 * board->col;
     int y = 24 * board->row;
     Bdisp_Rectangle(
@@ -88,6 +90,11 @@ void Board_draw(Board* board) {
         board->offsetY + y + 24 + 1,
         TEXT_COLOR_BLACK
     );
+
+    // draw status bar text
+    int miniX = 24;
+    int miniY = 0;
+    PrintMini(&miniX, &miniY, "status bar text", 0x40, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
 
     // TODO: make these better
     if (board->died) {
@@ -165,9 +172,10 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
         // oooh exciting exciting
         board->firstReveal = false;
 
-        // regenerate everything while first click is mine
+        // regenerate everything while first click is a mine or not a zero tile
+        // (we want to be generous here, don't just give the player one tile)
         // this is pretty scary i hope it doesnt leak memory
-        while (*cell == kTileTypeCoveredBomb) {
+        while (*cell == kTileTypeCoveredBomb || *cell != (kTileTypeZero | COVER_TILE_BIT)) {
             Board* newBoard = sys_malloc(sizeof(Board));
             Board_create(newBoard, board->width, board->height, board->mines);
 

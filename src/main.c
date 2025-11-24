@@ -17,7 +17,7 @@ int main() {
     srand(millisecond);
 
     Board* board = sys_malloc(sizeof(Board));
-    Board_create(board, LCD_WIDTH_PX / 24, (LCD_HEIGHT_PX - 24) / 24, 8);
+    Board_create(board, LCD_WIDTH_PX / 24, (LCD_HEIGHT_PX - 24) / 24, 12);
 
     while (true) {
         // Bdisp_AllClr_VRAM();
