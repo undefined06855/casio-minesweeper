@@ -166,6 +166,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
         board->firstReveal = false;
 
         // regenerate everything while first click is mine
+        // this is pretty scary i hope it doesnt leak memory
         while (*cell == kTileTypeCoveredBomb) {
             Board* newBoard = sys_malloc(sizeof(Board));
             Board_create(newBoard, board->width, board->height, board->mines);
