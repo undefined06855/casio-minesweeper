@@ -324,7 +324,9 @@ const color_t spr_flag[576] = {
     0xa534,0x6b4d,0x738e,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x7bcf,0x73ae
 };
 
-const color_t* sprites[64] = {
+#define MAX_SPRITE_COUNT 64
+
+const color_t* sprites[MAX_SPRITE_COUNT] = {
     // 0:
     spr_zero,
     spr_one,
@@ -360,16 +362,16 @@ const color_t* sprites[64] = {
     0x0,
     0x0,
     // 32:
-    spr_flag, // set bit 1 << 5 to flag the tile
-    spr_flag, // but these are the uncovered tiles, which cant be flagged!
-    spr_flag,
-    spr_flag,
-    spr_flag,
-    spr_flag,
-    spr_flag,
-    spr_flag,
-    spr_flag,
-    spr_flag,
+    0x0, // set bit 1 << 5 to flag the tile
+    0x0, // but these are the uncovered tiles, which cant be flagged!
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    0x0,
+    0x0,
     0x0,
     0x0,
     0x0,
@@ -396,7 +398,9 @@ const color_t* sprites[64] = {
 };
 
 const color_t* getSprite(enum TileType sprite) {
-    if (sprite >= 32) return 0x0;
+    if (sprite >= MAX_SPRITE_COUNT) return 0x0;
 
     return sprites[sprite];
 }
+
+#undef MAX_SPRITE_COUNT
