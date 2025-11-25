@@ -3,6 +3,8 @@
 #include <fxcg/heap.h>
 #include <fxcg/keyboard.h>
 #include <fxcg/display.h>
+#include <fxcg/rtc.h>
+#include <fxcg/misc.h>
 
 void _incrementMineCount(Board* board, int row, int col, void* mineCount) {
     if (*Board_getCell(board, row, col) == kTileTypeCoveredBomb) {
@@ -22,6 +24,8 @@ void Board_create(Board* board, int width, int height, int mines) {
     board->offsetY = 0;
 
     board->firstReveal = true;
+
+    board->startTicks = RTC_GetTicks();
 
     // calloc reimplementation (sys_calloc crashes???)
     board->data = sys_malloc(width * height);
@@ -80,7 +84,7 @@ void Board_draw(Board* board) {
         board->offsetY + y,
         board->offsetX + x + 24,
         board->offsetY + y + 24,
-        TEXT_COLOR_BLACK
+        COLOR_BLACK
     );
 
     Bdisp_Rectangle(
@@ -88,56 +92,97 @@ void Board_draw(Board* board) {
         board->offsetY + y - 1,
         board->offsetX + x + 24 + 1,
         board->offsetY + y + 24 + 1,
-        TEXT_COLOR_BLACK
+        COLOR_BLACK
     );
 
-    // draw status bar text
-    int miniX = 24;
-    int miniY = 0;
-    PrintMini(&miniX, &miniY, "status bar text", 0x40, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
+    Board_drawStatusBar(board);
+}
 
-    // TODO: make these better
-    if (board->died) {
-        Bdisp_MMPrint(40, 40, (unsigned char*)"you lose!", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
-    }
+void _clearAndFillBuffer(unsigned char* buffer, int number) {
+    for (int i = 0; i < 11; i++) buffer[i] = 0;
+    itoa(number, buffer);
+}
+
+void Board_drawStatusBar(Board* board) {
+    // draw status bar help text for the first 3s
+    // else draw information
+    int x = 24;
+    int y = 2;
 
     if (board->won) {
-        Bdisp_MMPrint(40, 40, (unsigned char*)"you win!", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, TEXT_COLOR_BLACK, TEXT_COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, "You win! Press any key to continue.", 1 << 6, 0xffffffff, 0, 0, COLOR_CHARTREUSE, COLOR_WHITE, true, 0);
+        return;
     }
+
+    if (board->lost) {
+        PrintMini(&x, &y, "You lose! Press any key to continue.", 1 << 6, 0xffffffff, 0, 0, COLOR_FIREBRICK, COLOR_WHITE, true, 0);
+        return;
+    }
+
+    if (!RTC_Elapsed_ms(board->startTicks, 3000)) {
+        PrintMini(&x, &y, "F1 - Flag | F2 - Reveal", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+        return;
+    }
+
+    // "8x8 (9 mines) 4/9 flagged"
+    // is there a way to make this neater? not really, right?
+
+    unsigned char* buf = sys_malloc(11);
+
+    _clearAndFillBuffer(buf, board->width);
+    PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+    PrintMini(&x, &y, "x", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+    _clearAndFillBuffer(buf, board->height);
+    PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+    PrintMini(&x, &y, " (", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+    _clearAndFillBuffer(buf, board->mines);
+    PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_TEAL, COLOR_WHITE, true, 0);
+    PrintMini(&x, &y, " mines) ", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+
+    int flagCount = 0;
+    for (int i = 0; i < board->width * board->height; i++) {
+        if (board->data[i] & FLAG_TILE_BIT) flagCount++;
+    }
+    _clearAndFillBuffer(buf, flagCount);
+    PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_STEELBLUE, COLOR_WHITE, true, 0);
+    PrintMini(&x, &y, "/", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+    _clearAndFillBuffer(buf, board->mines);
+    PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_TEAL, COLOR_WHITE, true, 0);
+    PrintMini(&x, &y, " flagged", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
 }
 
 void Board_handleKeypress(Board* board, int key) {
-    if (board->won || board->died) return;
+    if (board->won || board->lost) return;
 
     switch (key) {
-        case KEY_CTRL_UP:
+        case KEY_CTRL_UP: {
             board->row--;
             if (board->row < 0) board->row = board->height - 1;
-            break;
+        } break;
 
-        case KEY_CTRL_DOWN:
+        case KEY_CTRL_DOWN: {
             board->row++;
             if (board->row > board->height - 1) board->row = 0;
-            break;
+        } break;
 
-        case KEY_CTRL_LEFT:
+        case KEY_CTRL_LEFT: {
             board->col--;
             if (board->col < 0) board->col = board->width - 1;
-            break;
+        } break;
 
-        case KEY_CTRL_RIGHT:
+        case KEY_CTRL_RIGHT: {
             board->col++;
             if (board->col > board->width - 1) board->col = 0;
-            break;
+        } break;
 
-        case KEY_CTRL_F1:
+        case KEY_CTRL_F1: {
             Board_flag(board, board->row, board->col);
-            break;
+        } break;
 
-        case KEY_CTRL_F2:
+        case KEY_CTRL_F2: {
             // false for no force
             Board_revealSingleCell(board, board->row, board->col, false);
-            break;
+        } break;
     }
 }
 
@@ -202,7 +247,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
 
     // if it's flagged, unflag
     if (Board_cellIsFlagged(cell)) {
-        *cell ^= COVER_TILE_BIT;
+        *cell ^= FLAG_TILE_BIT;
 
         // if we NEED to reveal this cell, continue going, else just stop here
         if (!force) return;
@@ -213,7 +258,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
 
     if (*cell == kTileTypeBomb) {
         // uh oh!
-        board->died = true;
+        board->lost = true;
         return;
     }
 

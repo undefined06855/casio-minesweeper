@@ -13,15 +13,19 @@ typedef struct {
     int offsetX;
     int offsetY;
 
-    bool died;
+    bool lost;
     bool won;
 
     bool firstReveal;
+
+    int startTicks;
 } Board;
 
 void Board_create(Board* board, int width, int height, int mines);
 void Board_free(Board* board);
+
 void Board_draw(Board* board);
+void Board_drawStatusBar(Board* board);
 void Board_handleKeypress(Board* board, int key);
 
 void Board_flag(Board* board, int row, int col);

@@ -1,4 +1,4 @@
-#include "board.h"
+#include "menu.h"
 #include "utils.h"
 #include <fxcg/display.h>
 #include <fxcg/keyboard.h>
@@ -16,22 +16,23 @@ int main() {
     RTC_GetTime(&discard, &discard, &discard, &millisecond);
     srand(millisecond);
 
-    Board* board = sys_malloc(sizeof(Board));
-    Board_create(board, LCD_WIDTH_PX / 24, (LCD_HEIGHT_PX - 24) / 24, 12);
+    // note all functions will fall through as needed
+    // i.e. Menu_draw will call Board_draw if it has a Board*
+
+    Menu* menu = sys_malloc(sizeof(Menu));
+    Menu_create(menu);
 
     while (true) {
-        // Bdisp_AllClr_VRAM();
-
-        Board_draw(board);
+        Menu_draw(menu);
 
         int key;
         GetKey(&key);
-        Board_handleKeypress(board, key);
+        Menu_handleKeypress(menu, key);
 
         Bdisp_PutDisp_DD();
     }
 
-    Board_free(board);
+    Menu_free(menu);
 
     return 0;
 }
