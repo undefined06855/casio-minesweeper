@@ -1,6 +1,8 @@
 #pragma once
 #include <fxcg/display.h>
 
+#define MAX_SPRITE_COUNT 64
+
 static const int COVER_TILE_BIT = 1 << 4;
 static const int FLAG_TILE_BIT = 1 << 5;
 
@@ -14,9 +16,10 @@ enum TileType {
     kTileTypeSix = 6,
     kTileTypeSeven = 7,
     kTileTypeEight = 8,
-    kTileTypeBomb = 9,
+    kTileTypeMine = 9,
 
-    kTileTypeCoveredBomb = kTileTypeBomb | 1 << 4,
+    kTileTypeIncorrectFlag = MAX_SPRITE_COUNT - 1,
+    kTileTypeHitMine = MAX_SPRITE_COUNT - 2
 };
 
 const color_t* getSprite(enum TileType sprite);

@@ -7,7 +7,7 @@
 #include <fxcg/misc.h>
 
 void _incrementMineCount(Board* board, int row, int col, void* mineCount) {
-    if (*Board_getCell(board, row, col) == kTileTypeCoveredBomb) {
+    if (*Board_getCell(board, row, col) == (kTileTypeMine | COVER_TILE_BIT)) {
         (*(char*)mineCount)++;
     }
 }
@@ -20,12 +20,17 @@ void Board_create(Board* board, int width, int height, int mines) {
     board->row = 0;
     board->col = 0;
 
-    board->offsetX = 0;
-    board->offsetY = 0;
+    board->offsetX = (LCD_WIDTH_PX / 2) - (width * 24 / 2);
+    board->offsetY = ((LCD_HEIGHT_PX - 24) / 2) - (height * 24 / 2);
+
+    board->won = false;
+    board->lost = false;
 
     board->firstReveal = true;
 
     board->startTicks = RTC_GetTicks();
+    board->endTicks = -1;
+    board->endAnimationFinished = false;
 
     // calloc reimplementation (sys_calloc crashes???)
     board->data = sys_malloc(width * height);
@@ -40,12 +45,12 @@ void Board_create(Board* board, int width, int height, int mines) {
 
         char* cell = Board_getCell(board, row, col);
 
-        if (*cell == kTileTypeBomb) {
+        if (*cell == (kTileTypeMine | COVER_TILE_BIT)) {
             i--;
             continue;
         }
 
-        *cell = kTileTypeBomb | COVER_TILE_BIT;
+        *cell = kTileTypeMine | COVER_TILE_BIT;
     }
 
     // and place other tiles around the mines
@@ -53,7 +58,7 @@ void Board_create(Board* board, int width, int height, int mines) {
         for (int col = 0; col < width; col++) {
             char* cell = Board_getCell(board, row, col);
 
-            if (*cell == kTileTypeCoveredBomb) continue;
+            if (*cell == (kTileTypeMine | COVER_TILE_BIT)) continue;
 
             char mineCount = 0;
             Board_runForSurroundingCells(board, row, col, _incrementMineCount, &mineCount);
@@ -96,6 +101,7 @@ void Board_draw(Board* board) {
     );
 
     Board_drawStatusBar(board);
+    Board_drawEndAnimation(board);
 }
 
 void _clearAndFillBuffer(unsigned char* buffer, int number) {
@@ -104,30 +110,28 @@ void _clearAndFillBuffer(unsigned char* buffer, int number) {
 }
 
 void Board_drawStatusBar(Board* board) {
-    // draw status bar help text for the first 3s
-    // else draw information
     int x = 24;
     int y = 2;
 
-    if (board->won) {
-        PrintMini(&x, &y, "You win! Press any key to continue.", 1 << 6, 0xffffffff, 0, 0, COLOR_CHARTREUSE, COLOR_WHITE, true, 0);
+    // draw status bar help text for the first 5 seconds
+    // else draw information
+    if (!RTC_Elapsed_ms(board->startTicks, 5000)) {
+        PrintMini(&x, &y, "F1", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, " - Flag | ", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, "F2", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, " - Reveal", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
         return;
     }
 
-    if (board->lost) {
-        PrintMini(&x, &y, "You lose! Press any key to continue.", 1 << 6, 0xffffffff, 0, 0, COLOR_FIREBRICK, COLOR_WHITE, true, 0);
-        return;
-    }
-
-    if (!RTC_Elapsed_ms(board->startTicks, 3000)) {
-        PrintMini(&x, &y, "F1 - Flag | F2 - Reveal", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+    if (board->endAnimationFinished) {
+        PrintMini(&x, &y, "(Press any button to return)", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
         return;
     }
 
     // "8x8 (9 mines) 4/9 flagged"
     // is there a way to make this neater? not really, right?
 
-    unsigned char* buf = sys_malloc(11);
+    unsigned char buf[12]; // not sure if itll ever use 12 bytes but that's what's in the example!
 
     _clearAndFillBuffer(buf, board->width);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
@@ -144,46 +148,87 @@ void Board_drawStatusBar(Board* board) {
         if (board->data[i] & FLAG_TILE_BIT) flagCount++;
     }
     _clearAndFillBuffer(buf, flagCount);
-    PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_STEELBLUE, COLOR_WHITE, true, 0);
+    PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     PrintMini(&x, &y, "/", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
     _clearAndFillBuffer(buf, board->mines);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_TEAL, COLOR_WHITE, true, 0);
     PrintMini(&x, &y, " flagged", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
 }
 
-void Board_handleKeypress(Board* board, int key) {
-    if (board->won || board->lost) return;
+#define RAINBOW_LENGTH 12
+#define ANIMATION_LENGTH RAINBOW_LENGTH * 4
+color_t rainbow[RAINBOW_LENGTH] = {
+    0xF800, 0xFBE0, 0xFFE0, 0x7FE0, 0x07E0, 0x07EF, 0x07FF, 0x03FF, 0x001F, 0x781F, 0xF81F, 0xF80F
+};
+
+void Board_drawEndAnimation(Board* board) {
+    if (!board->won && !board->lost) return;
+
+    const char* str;
+
+    if (board->won) str = "GAME COMPLETE!";
+    else            str = "GAME OVER!";
+
+    for (int i = 0; i <= ANIMATION_LENGTH; i++) {
+        color_t col;
+        if (i == ANIMATION_LENGTH) col = COLOR_BLACK;
+        else col = rainbow[i % RAINBOW_LENGTH];
+        if (RTC_Elapsed_ms(board->endTicks, 100*i)) {
+            PrintCXY(i*2 + 24, i*2 + 24, str, TEXT_MODE_TRANSPARENT_BACKGROUND, -1, col, COLOR_WHITE, true, 0);
+        }
+    }
+
+    if (RTC_Elapsed_ms(board->endTicks, ANIMATION_LENGTH * 100)) {
+        board->endAnimationFinished = true;
+    }
+}
+
+#undef RAINBOW_LENGTH
+
+// returns true if the game should be exited back to the setup screen
+bool Board_handleKeypress(Board* board, int key) {
+    if (board->endAnimationFinished) {
+        if (key) return true;
+    }
+
+    if (board->won || board->lost) return false;
 
     switch (key) {
-        case KEY_CTRL_UP: {
+        case KEY_PRGM_UP: {
             board->row--;
             if (board->row < 0) board->row = board->height - 1;
         } break;
 
-        case KEY_CTRL_DOWN: {
+        case KEY_PRGM_DOWN: {
             board->row++;
             if (board->row > board->height - 1) board->row = 0;
         } break;
 
-        case KEY_CTRL_LEFT: {
+        case KEY_PRGM_LEFT: {
             board->col--;
             if (board->col < 0) board->col = board->width - 1;
         } break;
 
-        case KEY_CTRL_RIGHT: {
+        case KEY_PRGM_RIGHT: {
             board->col++;
             if (board->col > board->width - 1) board->col = 0;
         } break;
 
-        case KEY_CTRL_F1: {
+        case KEY_PRGM_F1: {
             Board_flag(board, board->row, board->col);
         } break;
 
-        case KEY_CTRL_F2: {
+        case KEY_PRGM_F2: {
             // false for no force
             Board_revealSingleCell(board, board->row, board->col, false);
         } break;
+
+        case KEY_PRGM_EXIT: {
+            return true;
+        }
     }
+
+    return false;
 }
 
 void Board_flag(Board* board, int row, int col) {
@@ -220,7 +265,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
         // regenerate everything while first click is a mine or not a zero tile
         // (we want to be generous here, don't just give the player one tile)
         // this is pretty scary i hope it doesnt leak memory
-        while (*cell == kTileTypeCoveredBomb || *cell != (kTileTypeZero | COVER_TILE_BIT)) {
+        while (*cell == (kTileTypeMine | COVER_TILE_BIT) || *cell != (kTileTypeZero | COVER_TILE_BIT)) {
             Board* newBoard = sys_malloc(sizeof(Board));
             Board_create(newBoard, board->width, board->height, board->mines);
 
@@ -232,7 +277,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
         }
     }
 
-    // if it's not covered, count surrounding bombs
+    // if it's not covered, count surrounding mines
     // then if it's equal to the value on the tile, auto reveal non-flagged cells
     if (!Board_cellIsCovered(cell) && *cell != kTileTypeZero) {
         char flagCount = 0;
@@ -256,9 +301,9 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
     *cell &= ~COVER_TILE_BIT; // unset covered bit
     *cell &= ~FLAG_TILE_BIT;
 
-    if (*cell == kTileTypeBomb) {
+    if (*cell == kTileTypeMine) {
         // uh oh!
-        board->lost = true;
+        Board_kablooey(board);
         return;
     }
 
@@ -271,6 +316,29 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
     }
 }
 
+void Board_kablooey(Board* board) {
+    board->lost = true;
+    board->endTicks = RTC_GetTicks();
+
+    // set certain tiles to special ones
+    for (int i = 0; i < board->width * board->height; i++) {
+        char* cell = &board->data[i];
+
+        // mark all incorrect flags
+        if (Board_cellIsFlagged(cell) && *cell != (kTileTypeMine | COVER_TILE_BIT | FLAG_TILE_BIT)) {
+            *cell = kTileTypeIncorrectFlag;
+            continue;
+        }
+
+        // and uncover all mines
+        if (*cell == (kTileTypeMine | COVER_TILE_BIT)) {
+            *cell &= ~COVER_TILE_BIT;
+            continue;
+        }
+    }
+
+    (*Board_getCell(board, board->row, board->col)) = kTileTypeHitMine;
+}
 
 // will reveal all surrounding tiles that aren't covered
 // note: force is enabled here, since we want to always uncover the tiles,
@@ -316,7 +384,11 @@ bool Board_cellIsCovered(char* cell) {
 void Board_checkWinCondition(Board* board) {
     // if any cells are covered still and aren't mines, return
     for (int i = 0; i < board->width * board->height; i++) {
-        if (Board_cellIsCovered(&board->data[i]) && board->data[i] != kTileTypeCoveredBomb) return;
+        if (
+            Board_cellIsCovered(&board->data[i])
+        &&  board->data[i] != (kTileTypeMine | COVER_TILE_BIT)
+        &&  board->data[i] != (kTileTypeMine | COVER_TILE_BIT | FLAG_TILE_BIT)
+        ) return;
     }
 
     // else you win

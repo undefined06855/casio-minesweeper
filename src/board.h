@@ -19,6 +19,8 @@ typedef struct {
     bool firstReveal;
 
     int startTicks;
+    int endTicks;
+    bool endAnimationFinished;
 } Board;
 
 void Board_create(Board* board, int width, int height, int mines);
@@ -26,12 +28,14 @@ void Board_free(Board* board);
 
 void Board_draw(Board* board);
 void Board_drawStatusBar(Board* board);
-void Board_handleKeypress(Board* board, int key);
+void Board_drawEndAnimation(Board* board);
+bool Board_handleKeypress(Board* board, int key);
 
 void Board_flag(Board* board, int row, int col);
 void Board_revealSurroundingCells(Board* board, int row, int col);
 void Board_revealSingleCell(Board* board, int row, int col, bool force);
 void Board_checkWinCondition(Board* board);
+void Board_kablooey(Board* board);
 
 void Board_runForSurroundingCells(Board* board, int row, int col, void(*callback)(Board*, int, int, void*), void* data);
 
