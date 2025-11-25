@@ -2,6 +2,8 @@
 
 Minesweeper for the CASIO FX-CG50/Prizm (and similar calculators - if it can take a .g3a it can probably run it!)
 
+Press F1 to flag and F2 to reveal the cell.
+
 ## Installation
 
 Take the .g3a file from the releases panel on the right (if I remember to upload it)
@@ -20,7 +22,7 @@ For VSCode using clangd and the Makefiles extension, I would recommend adding a 
 ```yaml
 CompileFlags:
   Add: [
-    "-IC:/Users/undefined0/projects/PrizmSDK-win-0.6/include"
+    "-Ipath/to/PrizmSDK-win-0.6/include"
   ]
 ```
 to get proper syntax highlighting, and be able to Ctrl+Shift+P -> Makefile: Build the current target
