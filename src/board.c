@@ -17,11 +17,14 @@ void Board_create(Board* board, int width, int height, int mines) {
     board->height = height;
     board->mines = mines;
 
-    board->row = 0;
-    board->col = 0;
+    board->row = board->width / 2;
+    board->col = board->height / 2;
 
     board->offsetX = (LCD_WIDTH_PX / 2) - (width * 24 / 2);
     board->offsetY = ((LCD_HEIGHT_PX - 24) / 2) - (height * 24 / 2);
+
+    board->shakeX = 0;
+    board->shakeY = 0;
 
     board->won = false;
     board->lost = false;
@@ -40,8 +43,8 @@ void Board_create(Board* board, int width, int height, int mines) {
 
     // place mines
     for (int i = 0; i < mines; i++) {
-        int row = randrange(0, height);
-        int col = randrange(0, width);
+        int row = Utils_randrange(0, height);
+        int col = Utils_randrange(0, width);
 
         char* cell = Board_getCell(board, row, col);
 
@@ -77,39 +80,39 @@ void Board_draw(Board* board) {
     // draw board
     for (int row = 0; row < board->height; row++) {
         for (int col = 0; col < board->width; col++) {
-            drawSpriteAtPos(*Board_getCell(board, row, col), 24*col + board->offsetX, 24*row + board->offsetY);
+            int x = 24*col + board->offsetX + board->shakeX;
+            int y = 24*row + board->offsetY + board->shakeY;
+
+            if (x < -24 || y < -24 || x > LCD_WIDTH_PX || y > LCD_HEIGHT_PX) continue;
+
+            Utils_drawSpriteAtPos(*Board_getCell(board, row, col), x, y);
         }
     }
 
     // draw cursor (maybe make this a sprite or look better in general?)
-    int x = 24 * board->col;
-    int y = 24 * board->row;
+    int x = 24 * board->col + board->offsetX + board->shakeX;
+    int y = 24 * board->row + board->offsetY + board->shakeY;
     Bdisp_Rectangle(
-        board->offsetX + x,
-        board->offsetY + y,
-        board->offsetX + x + 24,
-        board->offsetY + y + 24,
+        x, y,
+        x + 24, y + 24,
         COLOR_BLACK
     );
 
     Bdisp_Rectangle(
-        board->offsetX + x - 1,
-        board->offsetY + y - 1,
-        board->offsetX + x + 24 + 1,
-        board->offsetY + y + 24 + 1,
+        x - 1, y - 1,
+        x + 25, y + 25,
         COLOR_BLACK
     );
 
-    Board_drawStatusBar(board);
     Board_drawEndAnimation(board);
 }
 
 void _clearAndFillBuffer(unsigned char* buffer, int number) {
-    for (int i = 0; i < 11; i++) buffer[i] = 0;
+    for (int i = 0; i < 12; i++) buffer[i] = 0;
     itoa(number, buffer);
 }
 
-void Board_drawStatusBar(Board* board) {
+void Board_drawStatusArea(Board* board) {
     int x = 24;
     int y = 2;
 
@@ -118,7 +121,7 @@ void Board_drawStatusBar(Board* board) {
     if (!RTC_Elapsed_ms(board->startTicks, 5000)) {
         PrintMini(&x, &y, "F1", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
         PrintMini(&x, &y, " - Flag | ", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-        PrintMini(&x, &y, "F2", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, "F6", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
         PrintMini(&x, &y, " - Reveal", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
         return;
     }
@@ -141,7 +144,9 @@ void Board_drawStatusBar(Board* board) {
     PrintMini(&x, &y, " (", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
     _clearAndFillBuffer(buf, board->mines);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_TEAL, COLOR_WHITE, true, 0);
-    PrintMini(&x, &y, " mines) ", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+    const char* str = " mines)";
+    if (board->mines == 1) str = " mine)";
+    PrintMini(&x, &y, str, 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
 
     int flagCount = 0;
     for (int i = 0; i < board->width * board->height; i++) {
@@ -165,20 +170,24 @@ void Board_drawEndAnimation(Board* board) {
     if (!board->won && !board->lost) return;
 
     const char* str;
+    int speed;
 
-    if (board->won) str = "GAME COMPLETE!";
-    else            str = "GAME OVER!";
+    if (board->won)  str = "GAME COMPLETE!";
+    else             str = "GAME OVER!";
+
+    if (board->won) speed = 100;
+    else            speed = 10;
 
     for (int i = 0; i <= ANIMATION_LENGTH; i++) {
         color_t col;
         if (i == ANIMATION_LENGTH) col = COLOR_BLACK;
         else col = rainbow[i % RAINBOW_LENGTH];
-        if (RTC_Elapsed_ms(board->endTicks, 100*i)) {
+        if (RTC_Elapsed_ms(board->endTicks, i*speed)) {
             PrintCXY(i*2 + 24, i*2 + 24, str, TEXT_MODE_TRANSPARENT_BACKGROUND, -1, col, COLOR_WHITE, true, 0);
         }
     }
 
-    if (RTC_Elapsed_ms(board->endTicks, ANIMATION_LENGTH * 100)) {
+    if (RTC_Elapsed_ms(board->endTicks, ANIMATION_LENGTH * speed)) {
         board->endAnimationFinished = true;
     }
 }
@@ -197,28 +206,32 @@ bool Board_handleKeypress(Board* board, int key) {
         case KEY_PRGM_UP: {
             board->row--;
             if (board->row < 0) board->row = board->height - 1;
+            Board_updateOffset(board);
         } break;
 
         case KEY_PRGM_DOWN: {
             board->row++;
             if (board->row > board->height - 1) board->row = 0;
+            Board_updateOffset(board);
         } break;
 
         case KEY_PRGM_LEFT: {
             board->col--;
             if (board->col < 0) board->col = board->width - 1;
+            Board_updateOffset(board);
         } break;
 
         case KEY_PRGM_RIGHT: {
             board->col++;
             if (board->col > board->width - 1) board->col = 0;
+            Board_updateOffset(board);
         } break;
 
         case KEY_PRGM_F1: {
             Board_flag(board, board->row, board->col);
         } break;
 
-        case KEY_PRGM_F2: {
+        case KEY_PRGM_F6: {
             // false for no force
             Board_revealSingleCell(board, board->row, board->col, false);
         } break;
@@ -229,6 +242,38 @@ bool Board_handleKeypress(Board* board, int key) {
     }
 
     return false;
+}
+
+void Board_updateOffset(Board* board) {
+    const int pad = 80;
+    int left = 24 * board->col + board->offsetX + board->shakeX;
+    int top = 24 * board->row + board->offsetY + board->shakeY;
+    int right = left + 24;
+    int bottom = top + 24;
+
+    if (board->width * 24 + 24 > LCD_WIDTH_PX) {
+        while (left < pad) {
+            board->offsetX--;
+            left = 24 * board->col + board->offsetX + board->shakeX;
+        }
+
+        while (right > LCD_WIDTH_PX - pad) {
+            board->offsetX++;
+            right = 24 * board->col + board->offsetX + board->shakeX + 24;
+        }
+    }
+
+    if (board->height * 24 + 24 > LCD_HEIGHT_PX) {
+        while (top < pad) {
+            board->offsetY++;
+            top = 24 * board->row + board->offsetY + board->shakeY;
+        }
+
+        while (bottom > LCD_HEIGHT_PX - pad) {
+            board->offsetY--;
+            bottom = 24 * board->row + board->offsetY + board->shakeY + 24;
+        }
+    }
 }
 
 void Board_flag(Board* board, int row, int col) {
@@ -393,6 +438,7 @@ void Board_checkWinCondition(Board* board) {
 
     // else you win
     board->won = true;
+    board->endTicks = RTC_GetTicks();
 }
 
 char* Board_getCell(Board* board, int row, int col) {

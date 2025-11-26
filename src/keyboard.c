@@ -17,7 +17,8 @@ void Key_update() {
     // and also usb but no clue what i should do for that
     switch (Key_pressed()) {
         case KEY_PRGM_MENU: {
-            DisplayMainMenu();
+            // int _;
+            // GetKey(&_);
         } break;
     }
 }

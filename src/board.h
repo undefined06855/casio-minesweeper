@@ -13,6 +13,9 @@ typedef struct {
     int offsetX;
     int offsetY;
 
+    int shakeX;
+    int shakeY;
+
     bool lost;
     bool won;
 
@@ -27,9 +30,11 @@ void Board_create(Board* board, int width, int height, int mines);
 void Board_free(Board* board);
 
 void Board_draw(Board* board);
-void Board_drawStatusBar(Board* board);
+void Board_drawStatusArea(Board* board);
 void Board_drawEndAnimation(Board* board);
 bool Board_handleKeypress(Board* board, int key);
+
+void Board_updateOffset(Board* board);
 
 void Board_flag(Board* board, int row, int col);
 void Board_revealSurroundingCells(Board* board, int row, int col);
