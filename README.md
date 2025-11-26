@@ -6,7 +6,7 @@ Press F1 to flag and F2 to reveal the cell.
 
 ## Installation
 
-Take the .g3a file from the releases panel on the right (if I remember to upload it)
+Take the .g3a file from the releases panel on the right
 
 ## Compilation
 
