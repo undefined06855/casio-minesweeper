@@ -6,7 +6,7 @@ Press F1 to flag and F2 to reveal the cell.
 
 ## Installation
 
-Take the .g3a file from the releases panel on the right
+Take the .g3a file from the releases panel on the right, plug in your calculator to your PC, press F1 for USB Flash and drag and drop the .g3a in!
 
 ## Compilation
 
