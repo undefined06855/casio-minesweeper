@@ -72,6 +72,7 @@ void Menu_draw(Menu* menu) {
         y += 24;
     } else {
         // if either are zero we'll get a divide by zero error, so hardcode 0%
+        // TODO: colour this
         PrintMini(&x, &y, " (0%)", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
     }
 
@@ -124,6 +125,8 @@ void Menu_draw(Menu* menu) {
             rectX + rectWidth / 2, rectY + rectHeight / 2,
             TEXT_COLOR_PURPLE
         );
+
+        // TODO: show mines percentage
     } else {
         textCol = TEXT_COLOR_RED;
     }
