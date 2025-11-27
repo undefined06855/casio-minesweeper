@@ -193,7 +193,7 @@ void Menu_handleTextKeypress(Menu* menu, int key) {
 
         default: {
             // no numbers greater than 2 digits
-            if (Menu_getCurrentSettingValueLength(menu) == 2) break;
+            if (Menu_getCurrentSettingValueLength(menu) == Menu_getCurrentSettingValueLimit(menu)) break;
 
             int* value = Menu_getCurrentSetting(menu);
             int keyValue = Utils_keyToNumber(key);
@@ -229,6 +229,11 @@ int* Menu_getCurrentSetting(Menu* menu) {
     }
 
     return 0x0;
+}
+
+int Menu_getCurrentSettingValueLimit(Menu* menu) {
+    if (menu->settingRow == 2) return 3;
+    else return 2;
 }
 
 // is there a nicer way to do this? this is definitely the most efficient

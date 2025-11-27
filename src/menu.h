@@ -24,5 +24,6 @@ void Menu_fixMineCount(Menu* menu);
 
 int* Menu_getCurrentSetting(Menu* menu);
 int Menu_getCurrentSettingValueLength(Menu* menu);
+int Menu_getCurrentSettingValueLimit(Menu* menu);
 
 void Menu_begin(Menu* menu);
