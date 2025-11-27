@@ -8,6 +8,8 @@
 
 void Utils_drawSpriteAtPos(enum TileType sprite, int x, int y);
 
+void Utils_clearAndFillBuffer(unsigned char* buffer, int number);
+
 void Utils_initKeyToNumberMap();
 int Utils_keyToNumber(int key);
 

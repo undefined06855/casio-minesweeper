@@ -9,6 +9,9 @@ typedef struct {
     int settingCursorPosition;
     int settingRow;
 
+    const char* notification;
+    int notificationTime;
+
     Board* board;
 } Menu;
 

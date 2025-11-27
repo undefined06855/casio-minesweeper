@@ -1,5 +1,6 @@
 #include "utils.h"
 #include <fxcg/keyboard.h>
+#include <fxcg/misc.h>
 
 void Utils_drawSpriteAtPos(enum TileType sprite, int x, int y) {
     const color_t* data = getSprite(sprite);
@@ -9,6 +10,11 @@ void Utils_drawSpriteAtPos(enum TileType sprite, int x, int y) {
     }
 
     VRAM_CopySprite(data, x, y + 24, 24, 24);
+}
+
+void Utils_clearAndFillBuffer(unsigned char* buffer, int number) {
+    for (int i = 0; i < 12; i++) buffer[i] = 0;
+    itoa(number, buffer);
 }
 
 int keyToNumberMap[23];

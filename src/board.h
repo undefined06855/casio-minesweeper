@@ -32,7 +32,7 @@ typedef struct {
     int konamiCodeIndex;
 } Board;
 
-void Board_create(Board* board, int width, int height, int mines);
+void Board_create(Board* board, int width, int height, int mines, bool fake);
 void Board_free(Board* board);
 
 void Board_draw(Board* board);

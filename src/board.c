@@ -7,6 +7,7 @@
 #include <fxcg/misc.h>
 #include <fxcg/system.h>
 
+// used in the timer
 Board* globalBoard;
 
 void _incrementMineCount(Board* board, int row, int col, void* mineCount) {
@@ -15,7 +16,7 @@ void _incrementMineCount(Board* board, int row, int col, void* mineCount) {
     }
 }
 
-void Board_create(Board* board, int width, int height, int mines) {
+void Board_create(Board* board, int width, int height, int mines, bool fake) {
     board->width = width;
     board->height = height;
     board->mines = mines;
@@ -39,7 +40,7 @@ void Board_create(Board* board, int width, int height, int mines) {
     board->endTopAnimTicks = -1;
     board->endTopAnimTimeShowing = true;
 
-    board->timer = Timer_Install(0, &Board_handleTimer, 100);
+    board->timer = -1;
     board->centiseconds = 0;
 
     board->konamiCodeIndex = 0;
@@ -79,7 +80,7 @@ void Board_create(Board* board, int width, int height, int mines) {
         }
     }
 
-    globalBoard = board;
+    if (!fake) globalBoard = board;
 }
 
 void Board_free(Board* board) {
@@ -107,21 +108,16 @@ void Board_draw(Board* board) {
     Bdisp_Rectangle(
         x, y,
         x + 24, y + 24,
-        COLOR_BLACK
+        TEXT_COLOR_BLACK
     );
 
     Bdisp_Rectangle(
         x - 1, y - 1,
         x + 25, y + 25,
-        COLOR_BLACK
+        TEXT_COLOR_BLACK
     );
 
     Board_drawEndAnimation(board);
-}
-
-void _clearAndFillBuffer(unsigned char* buffer, int number) {
-    for (int i = 0; i < 12; i++) buffer[i] = 0;
-    itoa(number, buffer);
 }
 
 void Board_drawStatusArea(Board* board) {
@@ -155,10 +151,10 @@ void Board_drawStatusArea(Board* board) {
             int centiseconds = board->centiseconds % 10;
 
             PrintMini(&x, &y, "Completed in ", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-            _clearAndFillBuffer(buf, seconds);
+            Utils_clearAndFillBuffer(buf, seconds);
             PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
             PrintMini(&x, &y, ".", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-            _clearAndFillBuffer(buf, centiseconds);
+            Utils_clearAndFillBuffer(buf, centiseconds);
             PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
             PrintMini(&x, &y, "s!", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
         } else {
@@ -169,20 +165,20 @@ void Board_drawStatusArea(Board* board) {
     }
 
     if (board->lost) {
-        Pri ntMini(&x, &y, "(Press any button to return)", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, "(Press any button to return)", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
         return;
     }
 
     // "8x8 (9 mines) 4/9 flagged"
     // is there a way to make this neater? not really, right?
 
-    _clearAndFillBuffer(buf, board->width);
+    Utils_clearAndFillBuffer(buf, board->width);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     PrintMini(&x, &y, "x", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-    _clearAndFillBuffer(buf, board->height);
+    Utils_clearAndFillBuffer(buf, board->height);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     PrintMini(&x, &y, " (", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-    _clearAndFillBuffer(buf, board->mines);
+    Utils_clearAndFillBuffer(buf, board->mines);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_TEAL, COLOR_WHITE, true, 0);
     const char* str = " mines) ";
     if (board->mines == 1) str = " mine) ";
@@ -192,18 +188,22 @@ void Board_drawStatusArea(Board* board) {
     for (int i = 0; i < board->width * board->height; i++) {
         if (board->data[i] & FLAG_TILE_BIT) flagCount++;
     }
-    _clearAndFillBuffer(buf, flagCount);
+    Utils_clearAndFillBuffer(buf, flagCount);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     PrintMini(&x, &y, "/", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-    _clearAndFillBuffer(buf, board->mines);
+    Utils_clearAndFillBuffer(buf, board->mines);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_TEAL, COLOR_WHITE, true, 0);
     PrintMini(&x, &y, " flagged", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
 }
 
-#define RAINBOW_LENGTH 12
-#define ANIMATION_LENGTH RAINBOW_LENGTH * 4
-color_t rainbow[RAINBOW_LENGTH] = {
-    0xF800, 0xFBE0, 0xFFE0, 0x7FE0, 0x07E0, 0x07EF, 0x07FF, 0x03FF, 0x001F, 0x781F, 0xF81F, 0xF80F
+#define RAINBOW_LENGTH 48
+color_t rainbow[48] = {
+    63488, 63712, 63968, 64224, 64480, 64736, 64992, 65248,
+    65504, 57312, 49120, 40928, 32736, 24544, 16352,  8160,
+      224,   480,   736,   992,  1248,  1504,  1760,  2016,
+     2272,  2528,  2784,  3040,  3296,  3552,  3808,  4064,
+       31,  6175, 14367, 22559, 30751, 38943, 47135, 55327,
+    63519, 63515, 63511, 63507, 63503, 63499, 63495, 63491
 };
 
 void Board_drawEndAnimation(Board* board) {
@@ -216,12 +216,12 @@ void Board_drawEndAnimation(Board* board) {
     else             str = "GAME OVER!";
 
     if (board->won) speed = 100;
-    else            speed = 10;
+    else            speed = 20;
 
-    for (int i = 0; i <= ANIMATION_LENGTH; i++) {
+    for (int i = 0; i < RAINBOW_LENGTH+1; i++) {
         color_t col;
-        if (i == ANIMATION_LENGTH) col = COLOR_BLACK;
-        else col = rainbow[i % RAINBOW_LENGTH];
+        if (i == RAINBOW_LENGTH) col = COLOR_BLACK;
+        else col = rainbow[i];
         if (RTC_Elapsed_ms(board->endTicks, i*speed)) {
             PrintCXY(i*2 + 24, i*2 + 24, str, TEXT_MODE_TRANSPARENT_BACKGROUND, -1, col, COLOR_WHITE, true, 0);
         }
@@ -240,6 +240,7 @@ int code[7] = {
     KEY_PRGM_5
 };
 
+// returns true if the game should be exited back to the setup screen
 bool Board_handleKeypress(Board* board, int key) {
     if (board->won || board->lost) {
         if (key) return true;
@@ -359,15 +360,17 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
 
     if (board->firstReveal) {
         // oooh exciting exciting
-        Timer_Start(board->timer);
         board->firstReveal = false;
+
+        board->timer = Timer_Install(0, Board_handleTimer, 100);
+        Timer_Start(board->timer);
 
         // regenerate everything while first click is a mine or not a zero tile
         // (we want to be generous here, don't just give the player one tile)
         // this is pretty scary i hope it doesnt leak memory
         while (*cell == (kTileTypeMine | COVER_TILE_BIT) || *cell != (kTileTypeZero | COVER_TILE_BIT)) {
             Board* newBoard = sys_malloc(sizeof(Board));
-            Board_create(newBoard, board->width, board->height, board->mines);
+            Board_create(newBoard, board->width, board->height, board->mines, /* fake */ true);
 
             sys_free(board->data);
             board->data = newBoard->data;

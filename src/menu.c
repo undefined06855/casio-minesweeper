@@ -3,6 +3,7 @@
 #include <fxcg/keyboard.h>
 #include <fxcg/heap.h>
 #include <fxcg/misc.h>
+#include <fxcg/rtc.h>
 
 void Menu_create(Menu* menu) {
     menu->width = 9;
@@ -12,17 +13,15 @@ void Menu_create(Menu* menu) {
     menu->settingCursorPosition = 0;
     menu->settingRow = 0;
 
+    menu->notification = 0x0;
+    menu->notificationTime = -1;
+
     menu->board = 0x0;
 }
 
 void Menu_free(Menu* menu) {
     if (menu->board) { Board_free(menu->board); }
     sys_free(menu);
-}
-
-void _clearAndFillBuffer2(unsigned char* buffer, int number) {
-    for (int i = 0; i < 12; i++) buffer[i] = 0;
-    itoa(number, buffer);
 }
 
 void Menu_draw(Menu* menu) {
@@ -43,61 +42,131 @@ void Menu_draw(Menu* menu) {
     int y = 50;
     int cursorStartPositions[3];
 
-    int width = 0;
-    PrintMini(&width, &y, "0", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, false, 0);
+    int charWidth = 0;
+    PrintMini(&charWidth, &y, "0", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, false, 0);
 
     PrintMini(&x, &y, "width: ", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
     cursorStartPositions[0] = x;
-    _clearAndFillBuffer2(buf, menu->width);
+    Utils_clearAndFillBuffer(buf, menu->width);
     PrintMini(&x, &y, (const char*)buf, TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     x = 24;
     y += 24;
 
     PrintMini(&x, &y, "height: ", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
     cursorStartPositions[1] = x;
-    _clearAndFillBuffer2(buf, menu->height);
+    Utils_clearAndFillBuffer(buf, menu->height);
     PrintMini(&x, &y, (const char*)buf, TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     x = 24;
     y += 24;
 
     PrintMini(&x, &y, "mines: ", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
     cursorStartPositions[2] = x;
-    _clearAndFillBuffer2(buf, menu->mines);
+    Utils_clearAndFillBuffer(buf, menu->mines);
     PrintMini(&x, &y, (const char*)buf, TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
-    x = 24;
-    y += 24;
+    if (menu->width * menu->height != 0) {
+        PrintMini(&x, &y, " (", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+        Utils_clearAndFillBuffer(buf, (100*menu->mines) / (menu->width * menu->height));
+        PrintMini(&x, &y, (const char*)buf, TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, "%)", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+        x = 24;
+        y += 24;
+    } else {
+        // if either are zero we'll get a divide by zero error, so hardcode 0%
+        PrintMini(&x, &y, " (0%)", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+    }
 
-    PrintCXY(LCD_WIDTH_PX / 2 - 72, LCD_HEIGHT_PX - 54, "Continue", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
+    PrintCXY(LCD_WIDTH_PX / 2 - 72, LCD_HEIGHT_PX - 80, "Continue", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
 
     if (menu->settingRow != 3) {
         // calculator cursor position
-        int x = cursorStartPositions[menu->settingRow] + Menu_getCurrentSettingValueLength(menu) * width - menu->settingCursorPosition * width;
+        int x = cursorStartPositions[menu->settingRow] + Menu_getCurrentSettingValueLength(menu) * charWidth - menu->settingCursorPosition * charWidth;
         int y = menu->settingRow * 24 + 50;
 
         Bdisp_Rectangle(
             x, y,
             x + 1, y + 18,
-            COLOR_BLACK
+            TEXT_COLOR_BLACK
         );
     } else {
         int x = LCD_WIDTH_PX / 2 - 72;
-        int y = LCD_HEIGHT_PX - 54;
+        int y = LCD_HEIGHT_PX - 80;
 
         Bdisp_Rectangle(
             x - 4, y - 4,
             x + 8*18 + 4, y + 18 + 4,
-            COLOR_BLACK
+            TEXT_COLOR_BLACK
         );
     }
+
+    int rectX = LCD_WIDTH_PX * 0.8 - 20;
+    int rectY = LCD_HEIGHT_PX * 0.5 - 30;
+
+    int textCol = TEXT_COLOR_BLACK;
+
+    if (menu->width != 0 && menu->height != 0) {
+        // if either are zero we'll get divide by zero error again so don't draw
+        // a rectangle if so
+
+        int rectWidth, rectHeight;
+
+        const int maxRectSize = LCD_HEIGHT_PX * 0.5;
+
+        if (menu->width > menu->height) {
+            rectWidth = maxRectSize;
+            rectHeight = (maxRectSize * (1000*menu->height / menu->width)) / 1000;
+        } else {
+            rectWidth = (maxRectSize * (1000*menu->width / menu->height)) / 1000;
+            rectHeight = maxRectSize;
+        }
+
+        Bdisp_Rectangle(
+            rectX - rectWidth / 2, rectY - rectHeight / 2,
+            rectX + rectWidth / 2, rectY + rectHeight / 2,
+            TEXT_COLOR_PURPLE
+        );
+    } else {
+        textCol = TEXT_COLOR_RED;
+    }
+
+    // draw the text inside by first measuring it and then drawing
+    // oh hey we can use the buffer from earlier
+    // PrintMiniMini mode should be zero (we dont need any special handling)
+    int width = 0;
+    int _ = 0;
+
+    Utils_clearAndFillBuffer(buf, menu->width);
+    PrintMiniMini(&width, &_, (const char*)buf, 0, textCol, true);
+    PrintMiniMini(&width, &_, "x", 0, textCol, true);
+    Utils_clearAndFillBuffer(buf, menu->height);
+    PrintMiniMini(&width, &_, (const char*)buf, 0, textCol, true);
+
+    int textX = rectX - width / 2;
+    int textY = rectY - 5;
+
+    Utils_clearAndFillBuffer(buf, menu->width);
+    PrintMiniMini(&textX, &textY, (const char*)buf, 0, textCol, false);
+    PrintMiniMini(&textX, &textY, "x", 0, textCol, false);
+    Utils_clearAndFillBuffer(buf, menu->height);
+    PrintMiniMini(&textX, &textY, (const char*)buf, 0, textCol, false);
 }
 
 void Menu_drawStatusArea(Menu* menu) {
     if (menu->board) {
         Board_drawStatusArea(menu->board);
     }
+
+    if (menu->notification) {
+        int x = 24;
+        int y = 2;
+        PrintMini(&x, &y, menu->notification, 1 << 6, 0xffffffff, 0, 0, COLOR_RED, COLOR_WHITE, true, 0);
+
+        if (RTC_Elapsed_ms(menu->notificationTime, 1000)) {
+            menu->notification = 0x0;
+            menu->notificationTime = -1;
+        }
+    }
 }
 
-// returns true if the program should exit
 void Menu_handleKeypress(Menu* menu, int key) {
     if (menu->board) {
         bool shouldExit = Board_handleKeypress(menu->board, key);
@@ -119,6 +188,7 @@ void Menu_handleKeypress(Menu* menu, int key) {
         case KEY_PRGM_RETURN: { // misnomer? this is exe key
             menu->settingRow++;
             if (menu->settingRow > 3) {
+                menu->settingRow = 3;
                 Menu_begin(menu);
             }
         } break;
@@ -212,17 +282,32 @@ void Menu_handleTextKeypress(Menu* menu, int key) {
 }
 
 void Menu_fixMineCount(Menu* menu) {
-    if (menu->width < 2) menu->width = 2;
-    if (menu->height < 2) menu->height = 2;
-
     if (menu->mines > (menu->width * menu->height) * 0.9) {
         menu->mines = (menu->width * menu->height) * 0.9;
     }
 }
 
 void Menu_begin(Menu* menu) {
+    if (menu->width < 2) {
+        menu->notification = "Width cannot be <2!";
+        menu->notificationTime = RTC_GetTicks();
+        return;
+    }
+
+    if (menu->height < 2) {
+        menu->notification = "Height cannot be <2!";
+        menu->notificationTime = RTC_GetTicks();
+        return;
+    }
+
+    if (menu->mines == 0) {
+        menu->notification = "Mines must be >1!";
+        menu->notificationTime = RTC_GetTicks();
+        return;
+    }
+
     menu->board = sys_malloc(sizeof(Board));
-    Board_create(menu->board, menu->width, menu->height, menu->mines);
+    Board_create(menu->board, menu->width, menu->height, menu->mines, /* real board */ false);
 }
 
 int* Menu_getCurrentSetting(Menu* menu) {
