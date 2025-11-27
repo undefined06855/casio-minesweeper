@@ -21,9 +21,15 @@ typedef struct {
 
     bool firstReveal;
 
+    int timer;
+    int centiseconds;
+
     int startTicks;
     int endTicks;
-    bool endAnimationFinished;
+    int endTopAnimTicks;
+    bool endTopAnimTimeShowing;
+
+    int konamiCodeIndex;
 } Board;
 
 void Board_create(Board* board, int width, int height, int mines);
@@ -42,6 +48,8 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force);
 void Board_checkWinCondition(Board* board);
 void Board_kablooey(Board* board);
 
+void Board_onGameComplete(Board* board, bool won);
+
 void Board_runForSurroundingCells(Board* board, int row, int col, void(*callback)(Board*, int, int, void*), void* data);
 
 // maybe these should just take in the char so it's one byte instead of four
@@ -51,3 +59,5 @@ bool Board_cellIsFlagged(char* cell);
 bool Board_cellIsCovered(char* cell);
 
 char* Board_getCell(Board* board, int row, int col);
+
+void Board_handleTimer();

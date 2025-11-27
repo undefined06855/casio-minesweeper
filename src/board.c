@@ -5,6 +5,9 @@
 #include <fxcg/display.h>
 #include <fxcg/rtc.h>
 #include <fxcg/misc.h>
+#include <fxcg/system.h>
+
+Board* globalBoard;
 
 void _incrementMineCount(Board* board, int row, int col, void* mineCount) {
     if (*Board_getCell(board, row, col) == (kTileTypeMine | COVER_TILE_BIT)) {
@@ -17,8 +20,8 @@ void Board_create(Board* board, int width, int height, int mines) {
     board->height = height;
     board->mines = mines;
 
-    board->row = board->width / 2;
-    board->col = board->height / 2;
+    board->row = board->height / 2;
+    board->col = board->width / 2;
 
     board->offsetX = (LCD_WIDTH_PX / 2) - (width * 24 / 2);
     board->offsetY = ((LCD_HEIGHT_PX - 24) / 2) - (height * 24 / 2);
@@ -33,7 +36,13 @@ void Board_create(Board* board, int width, int height, int mines) {
 
     board->startTicks = RTC_GetTicks();
     board->endTicks = -1;
-    board->endAnimationFinished = false;
+    board->endTopAnimTicks = -1;
+    board->endTopAnimTimeShowing = true;
+
+    board->timer = Timer_Install(0, &Board_handleTimer, 100);
+    board->centiseconds = 0;
+
+    board->konamiCodeIndex = 0;
 
     // calloc reimplementation (sys_calloc crashes???)
     board->data = sys_malloc(width * height);
@@ -69,11 +78,14 @@ void Board_create(Board* board, int width, int height, int mines) {
             *cell = mineCount | COVER_TILE_BIT;
         }
     }
+
+    globalBoard = board;
 }
 
 void Board_free(Board* board) {
     sys_free(board->data);
     sys_free(board);
+    globalBoard = 0x0;
 }
 
 void Board_draw(Board* board) {
@@ -126,15 +138,43 @@ void Board_drawStatusArea(Board* board) {
         return;
     }
 
-    if (board->endAnimationFinished) {
-        PrintMini(&x, &y, "(Press any button to return)", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+    unsigned char buf[12]; // not sure if itll ever use 12 bytes but that's what's in the example
+
+    if (board->won) {
+        if (board->endTopAnimTicks == -1) {
+            board->endTopAnimTicks = RTC_GetTicks();
+        }
+
+        if (RTC_Elapsed_ms(board->endTopAnimTicks, 1500)) {
+            board->endTopAnimTimeShowing = !board->endTopAnimTimeShowing;
+            board->endTopAnimTicks = RTC_GetTicks();
+        }
+
+        if (board->endTopAnimTimeShowing) {
+            int seconds = board->centiseconds / 10;
+            int centiseconds = board->centiseconds % 10;
+
+            PrintMini(&x, &y, "Completed in ", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+            _clearAndFillBuffer(buf, seconds);
+            PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+            PrintMini(&x, &y, ".", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+            _clearAndFillBuffer(buf, centiseconds);
+            PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+            PrintMini(&x, &y, "s!", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+        } else {
+            PrintMini(&x, &y, "(Press any button to return)", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+        }
+
+        return;
+    }
+
+    if (board->lost) {
+        Pri ntMini(&x, &y, "(Press any button to return)", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
         return;
     }
 
     // "8x8 (9 mines) 4/9 flagged"
     // is there a way to make this neater? not really, right?
-
-    unsigned char buf[12]; // not sure if itll ever use 12 bytes but that's what's in the example!
 
     _clearAndFillBuffer(buf, board->width);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
@@ -144,8 +184,8 @@ void Board_drawStatusArea(Board* board) {
     PrintMini(&x, &y, " (", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
     _clearAndFillBuffer(buf, board->mines);
     PrintMini(&x, &y, (const char*)buf, 1 << 6, 0xffffffff, 0, 0, COLOR_TEAL, COLOR_WHITE, true, 0);
-    const char* str = " mines)";
-    if (board->mines == 1) str = " mine)";
+    const char* str = " mines) ";
+    if (board->mines == 1) str = " mine) ";
     PrintMini(&x, &y, str, 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
 
     int flagCount = 0;
@@ -186,21 +226,35 @@ void Board_drawEndAnimation(Board* board) {
             PrintCXY(i*2 + 24, i*2 + 24, str, TEXT_MODE_TRANSPARENT_BACKGROUND, -1, col, COLOR_WHITE, true, 0);
         }
     }
-
-    if (RTC_Elapsed_ms(board->endTicks, ANIMATION_LENGTH * speed)) {
-        board->endAnimationFinished = true;
-    }
 }
 
 #undef RAINBOW_LENGTH
 
-// returns true if the game should be exited back to the setup screen
+int code[7] = {
+    KEY_PRGM_8,
+    KEY_PRGM_0,
+    KEY_PRGM_0,
+    KEY_PRGM_8,
+    KEY_PRGM_1,
+    KEY_PRGM_3,
+    KEY_PRGM_5
+};
+
 bool Board_handleKeypress(Board* board, int key) {
-    if (board->endAnimationFinished) {
+    if (board->won || board->lost) {
         if (key) return true;
     }
 
     if (board->won || board->lost) return false;
+
+    if (key == code[board->konamiCodeIndex]) {
+        board->konamiCodeIndex++;
+
+        if (board->konamiCodeIndex == 7) {
+            Board_onGameComplete(board, true);
+            return false;
+        }
+    }
 
     switch (key) {
         case KEY_PRGM_UP: {
@@ -305,6 +359,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
 
     if (board->firstReveal) {
         // oooh exciting exciting
+        Timer_Start(board->timer);
         board->firstReveal = false;
 
         // regenerate everything while first click is a mine or not a zero tile
@@ -362,8 +417,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
 }
 
 void Board_kablooey(Board* board) {
-    board->lost = true;
-    board->endTicks = RTC_GetTicks();
+    Board_onGameComplete(board, false);
 
     // set certain tiles to special ones
     for (int i = 0; i < board->width * board->height; i++) {
@@ -383,6 +437,14 @@ void Board_kablooey(Board* board) {
     }
 
     (*Board_getCell(board, board->row, board->col)) = kTileTypeHitMine;
+}
+
+void Board_onGameComplete(Board* board, bool won) {
+    if (won) board->won = true;
+    else     board->lost = true;
+    board->endTicks = RTC_GetTicks();
+    Timer_Stop(board->timer);
+    Timer_Deinstall(board->timer);
 }
 
 // will reveal all surrounding tiles that aren't covered
@@ -437,10 +499,13 @@ void Board_checkWinCondition(Board* board) {
     }
 
     // else you win
-    board->won = true;
-    board->endTicks = RTC_GetTicks();
+    Board_onGameComplete(board, true);
 }
 
 char* Board_getCell(Board* board, int row, int col) {
     return &board->data[row*board->width + col];
+}
+
+void Board_handleTimer() {
+    globalBoard->centiseconds++;
 }

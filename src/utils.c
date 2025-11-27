@@ -11,19 +11,6 @@ void Utils_drawSpriteAtPos(enum TileType sprite, int x, int y) {
     VRAM_CopySprite(data, x, y + 24, 24, 24);
 }
 
-/*
-#define KEY_PRGM_3 52
-#define KEY_PRGM_6 53
-#define KEY_PRGM_9 54
-#define KEY_PRGM_2 62
-#define KEY_PRGM_5 63
-#define KEY_PRGM_8 64
-#define KEY_PRGM_0 71
-#define KEY_PRGM_1 72
-#define KEY_PRGM_4 73
-#define KEY_PRGM_7 74
-*/
-
 int keyToNumberMap[23];
 
 void Utils_initKeyToNumberMap() {

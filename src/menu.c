@@ -175,6 +175,7 @@ void Menu_handleTextKeypress(Menu* menu, int key) {
             if (Menu_getCurrentSettingValueLength(menu) == 1) {
                 *value = 0;
                 menu->settingCursorPosition = 0;
+                Menu_fixMineCount(menu);
                 break;
             }
 
@@ -211,6 +212,9 @@ void Menu_handleTextKeypress(Menu* menu, int key) {
 }
 
 void Menu_fixMineCount(Menu* menu) {
+    if (menu->width < 2) menu->width = 2;
+    if (menu->height < 2) menu->height = 2;
+
     if (menu->mines > (menu->width * menu->height) * 0.9) {
         menu->mines = (menu->width * menu->height) * 0.9;
     }
