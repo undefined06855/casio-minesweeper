@@ -35,7 +35,8 @@ MKG3AFLAGS := -n basic:minesweeper -i uns:../unselected.bmp -i sel:../selected.b
 # (LTO). Doing so will usually allow the compiler to generate much better code
 # (smaller and/or faster), but may expose bugs in your code that don't cause
 # any trouble without LTO enabled.
-CFLAGS	= -Os -Wall $(MACHDEP) $(INCLUDE) -ffunction-sections -fdata-sections
+# MODIFICATION: changed -Os to -Ofast (which implies -O3 and -ffast-math)
+CFLAGS	= -Ofast -Wall $(MACHDEP) $(INCLUDE) -ffunction-sections -fdata-sections
 CXXFLAGS	=	$(CFLAGS) -fno-exceptions
 
 LDFLAGS	= $(MACHDEP) -T$(FXCGSDK)/toolchain/prizm.x -Wl,-static -Wl,-gc-sections
