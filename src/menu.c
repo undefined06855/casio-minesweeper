@@ -72,8 +72,9 @@ void Menu_draw(Menu* menu) {
         y += 24;
     } else {
         // if either are zero we'll get a divide by zero error, so hardcode 0%
-        // TODO: colour this
-        PrintMini(&x, &y, " (0%)", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, " (", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, "0", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+        PrintMini(&x, &y, "%)", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
     }
 
     PrintCXY(LCD_WIDTH_PX / 2 - 72, LCD_HEIGHT_PX - 80, "Continue", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
@@ -126,7 +127,18 @@ void Menu_draw(Menu* menu) {
             TEXT_COLOR_PURPLE
         );
 
-        // TODO: show mines percentage
+
+        int lineCount = ((rectWidth - 4) * (1000*menu->mines / (menu->height * menu->width))) / 1000;
+        int x = (rectX - rectWidth / 2) + 2;
+        for (int i = 0; i < lineCount; i++) {
+            Bdisp_Rectangle(
+                x, (rectY - rectHeight / 2) + 2,
+                x, (rectY + rectHeight / 2) - 2,
+                TEXT_COLOR_RED
+            );
+            x++;
+        }
+
     } else {
         textCol = TEXT_COLOR_RED;
     }
@@ -144,7 +156,7 @@ void Menu_draw(Menu* menu) {
     PrintMiniMini(&width, &_, (const char*)buf, 0, textCol, true);
 
     int textX = rectX - width / 2;
-    int textY = rectY - 5;
+    int textY = rectY - 4;
 
     Utils_clearAndFillBuffer(buf, menu->width);
     PrintMiniMini(&textX, &textY, (const char*)buf, 0, textCol, false);
