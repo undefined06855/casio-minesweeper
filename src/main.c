@@ -54,5 +54,7 @@ int main() {
 
     Menu_free(menu);
 
+    Save_unload();
+
     return 0;
 }

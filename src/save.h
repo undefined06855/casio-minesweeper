@@ -1,19 +1,17 @@
 #pragma once
-#include "utils.h"
 
-struct Score;
+#define SAVE_DIR (unsigned char*)"Minesweeper"
+#define SAVE_FILE (unsigned char*)"scores"
 
 typedef struct {
-    char* name;
-    char size;
-    int time;
-    struct Score* next;
+    char name[16];
+    int width;
+    int height;
+    int centiseconds;
 } Score;
 
-Score* Score_loadFromData(byte* buffer, int* offset, Score* previous);
-Score* Score_saveToBuffer(Score* score, byte* buffer, int* offset);
-
 void Save_load();
+void Save_unload();
 void Save_save();
 
 void Save_reset();
@@ -21,4 +19,4 @@ void Save_reset();
 int Save_getCount();
 Score* Save_getAtIndex(int index);
 
-void Save_writeScore(char size, int time, char* name);
+Score* Save_writeScore();

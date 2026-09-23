@@ -21,12 +21,19 @@ void Scores_draw(Scores* scores) {
     for (int i = 0; i < count; i++) {
         Score* score = Save_getAtIndex(i);
 
-        Utils_clearAndFillBuffer(buf, score->time);
+        int seconds = score->centiseconds / 10;
+        int centiseconds = score->centiseconds % 10;
 
         locate_OS(1, i+1);
         Print_OS((const char*)score->name, 0, 0);
         Print_OS(" ", 0, 0);
+
+        Utils_clearAndFillBuffer(buf, seconds);
         Print_OS((const char*)buf, 0, 0);
+        Print_OS(".", 0, 0);
+        Utils_clearAndFillBuffer(buf, centiseconds);
+        Print_OS((const char*)buf, 0, 0);
+        Print_OS(".", 0, 0);
     }
 }
 
@@ -57,7 +64,7 @@ bool Scores_handleKeypress(Scores* scores, int key) {
 
         case KEY_PRGM_5: {
             int len;
-            if (MCSGetDlen2((unsigned char*)"Minesweeper", (unsigned char*)"scores", &len) != MCS_SUCCESS) {
+            if (MCSGetDlen2(SAVE_DIR, SAVE_FILE, &len) != MCS_SUCCESS) {
                 // file doesnt exist yet
                 scores->notification = "MainMem file does not exist!";
                 break;

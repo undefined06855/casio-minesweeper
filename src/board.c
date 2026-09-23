@@ -1,6 +1,7 @@
 #include "board.h"
 #include "utils.h"
 #include "save.h"
+#include <string.h>
 #include <fxcg/heap.h>
 #include <fxcg/keyboard.h>
 #include <fxcg/display.h>
@@ -448,7 +449,14 @@ void Board_kablooey(Board* board) {
 void Board_win(Board* board) {
     Board_onGameComplete(board, true);
 
-    Save_writeScore(0x69, board->centiseconds, "test test");
+    Score* score = Save_writeScore();
+    if (!score) return;
+
+    sys_strncpy(score->name, "john sweeper", 16);
+    score->width = board->width;
+    score->height = board->height;
+    score->centiseconds = board->centiseconds;
+
     Save_save();
 }
 

@@ -2,150 +2,71 @@
 #include "utils.h"
 #include <fxcg/file.h>
 #include <fxcg/heap.h>
-#include <string.h>
 
-#define RECORD_NAME_LEN 16
-#define RECORD_SIZE (RECORD_NAME_LEN + 1 + 4)
-
-static void write_fixed_name(byte* dst16, const char* src) {
-    // Zero-pad and ensure at least one terminator within 16 bytes
-    memset(dst16, 0, RECORD_NAME_LEN);
-    if (src) {
-        strncpy((char*)dst16, src, RECORD_NAME_LEN - 1);
-    }
-}
-
-Score* first;
-
-Score* Score_loadFromData(byte* buffer, int* offset, Score* previous) {
-    Score* score = sys_malloc(sizeof(Score));
-
-    score->name = sys_malloc(RECORD_NAME_LEN);
-    memcpy(score->name, &buffer[*offset], RECORD_NAME_LEN);
-    score->name[RECORD_NAME_LEN - 1] = '\0';
-
-    score->size = buffer[*offset + RECORD_NAME_LEN];
-
-    int time = 0;
-    memcpy(&time, &buffer[*offset + RECORD_NAME_LEN + 1], sizeof(int));
-    score->time = (int)time;
-
-    score->next = 0x0;
-
-    if (previous != 0x0) {
-        previous->next = (struct Score*)score;
-    }
-
-    *offset += RECORD_SIZE;
-
-    return score;
-}
-
-// returns the next score so it can be chained
-Score* Score_saveToBuffer(Score* score, byte* buffer, int* offset) {
-    write_fixed_name(&buffer[*offset], score->name);
-    buffer[*offset + RECORD_NAME_LEN] = score->size;
-
-    int time = (int)score->time;
-    memcpy(&buffer[*offset + RECORD_NAME_LEN + 1], &time, sizeof(int));
-
-    *offset += RECORD_SIZE;
-
-    return (Score*)score->next;
-}
+Score* Save_data = 0x0;
+int Save_count = 0;
 
 void Save_load() {
-    // MCSDelVar2((unsigned char*)"Minesweeper", (unsigned char*)"scores");
-
-    first = 0x0;
+    // MCSDelVar2(SAVE_DIR, SAVE_FILE);
 
     int len;
-    if (MCSGetDlen2((unsigned char*)"Minesweeper", (unsigned char*)"scores", &len) != MCS_SUCCESS || len <= 0) {
+    if (MCSGetDlen2(SAVE_DIR, SAVE_FILE, &len) != MCS_SUCCESS || len <= 0) {
         // file doesnt exist yet
         return;
     }
 
-    char* buf = sys_malloc(len);
-    if (!buf) return;
+    Save_data = sys_malloc(len);
+    Save_count = len / sizeof(Score);
+    if (!Save_data) return;
 
-    if (MCSGetData1(0, len, buf) != MCS_SUCCESS) {
-        sys_free(buf);
+    if (MCSGetData1(0, len, Save_data) != MCS_SUCCESS) {
+        sys_free(Save_data);
+        Save_data = 0x0;
+        Save_count = 0;
         return;
     }
+}
 
-    // parse buffer
-    int offset = 0;
-    Score* prev = 0x0;
-    while (offset + RECORD_SIZE <= len) {
-        prev = Score_loadFromData(buf, &offset, prev);
-        if (first == 0x0) first = prev;
-    }
-
-    sys_free(buf);
+void Save_unload() {
+    if (Save_data == 0x0) return;
+    sys_free(Save_data);
 }
 
 void Save_save() {
+    if (Save_data == 0x0) return;
+
     int count = Save_getCount();
-    if (count <= 0) {
-        MCS_CreateDirectory((unsigned char*)"Minesweeper");
-        MCSDelVar2((unsigned char*)"Minesweeper", (unsigned char*)"scores");
+    if (count == 0) {
+        MCS_CreateDirectory(SAVE_DIR);
+        MCSDelVar2(SAVE_DIR, SAVE_FILE);
         return;
     }
 
-    int size = count * RECORD_SIZE;
-
-    byte* buffer = sys_malloc(size);
-    if (!buffer) return;
-
-    int offset = 0;
-    Score* score = first;
-    while (score) {
-        Score_saveToBuffer(score, buffer, &offset);
-        score = (Score*)score->next;
-    }
-
-    MCS_CreateDirectory((unsigned char*)"Minesweeper");
-    MCSDelVar2((unsigned char*)"Minesweeper", (unsigned char*)"scores");
-    MCSPutVar2((unsigned char*)"Minesweeper", (unsigned char*)"scores", size, buffer);
-
-    sys_free(buffer);
+    MCS_CreateDirectory(SAVE_DIR);
+    MCSDelVar2(SAVE_DIR, SAVE_FILE);
+    MCSPutVar2(SAVE_DIR, SAVE_FILE, Save_count * sizeof(Score), Save_data);
 }
 
 void Save_reset() {
-    Score* score = first;
-    while (score) {
-        Score* next = (Score*)score->next;
-        if (score->name) sys_free(score->name);
-        sys_free(score);
-        score = next;
-    }
-    first = 0x0;
+    if (Save_data == 0x0) return;
+    Save_count = 0;
 }
 
 int Save_getCount() {
-    int count = 0;
-    Score* score = first;
-    while (score) {
-        count++;
-        score = (Score*)score->next;
-    }
-
-    return count;
+    if (Save_data == 0x0) return 0;
+    return Save_count;
 }
 
 Score* Save_getAtIndex(int index) {
-    Score* score = first;
-    for (int i = 0; i < index && score; i++) { score = (Score*)score->next; }
-    return score;
+    if (index >= Save_count) return 0x0;
+    return &Save_data[index];
 }
 
-void Save_writeScore(char size, int time, char* name) {
-    Score* score = sys_malloc(sizeof(Score));
-    score->name = sys_malloc(RECORD_NAME_LEN);
-    write_fixed_name(score->name, name);
-    score->size = size;
-    score->time = time;
-    score->next = (struct Score*)first;
+Score* Save_writeScore() {
+    if (Save_count >= 200) return 0x0;
 
-    first = score;
+    Save_count++;
+    Save_data = sys_realloc(Save_data, Save_count * sizeof(Score));
+
+    return Save_getAtIndex(Save_count - 1);
 }
