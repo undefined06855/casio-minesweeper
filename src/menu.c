@@ -40,7 +40,7 @@ void Menu_draw(Menu* menu) {
 
     int versionX = 213;
     int versionY = 10;
-    PrintMiniMini(&versionX, &versionY, (const char*)"v1.0.1", 0, TEXT_COLOR_BLACK, false);
+    PrintMiniMini(&versionX, &versionY, (const char*)"v1.2.0", 0, TEXT_COLOR_BLACK, false);
 
     // PrintMini(&x, &y, "F1", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     // PrintMini(&x, &y, " - Continue", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
