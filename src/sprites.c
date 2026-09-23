@@ -77,5 +77,3 @@ const color_t* getSprite(enum TileType sprite) {
 
     return sprites[sprite];
 }
-
-#undef MAX_SPRITE_COUNT
