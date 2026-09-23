@@ -274,6 +274,8 @@ bool Board_handleKeypress(Board* board, int key) {
             Board_win(board);
             return false;
         }
+    } else {
+        board->konamiCodeIndex = 0;
     }
 
     switch (key) {
