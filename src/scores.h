@@ -1,0 +1,13 @@
+#pragma once
+#include "utils.h"
+
+typedef struct {
+    const char* notification;
+} Scores;
+
+void Scores_create(Scores* scores);
+void Scores_free(Scores* scores);
+
+void Scores_draw(Scores* scores);
+void Scores_drawStatusArea(Scores* scores);
+bool Scores_handleKeypress(Scores* scores, int key);

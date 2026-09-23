@@ -1,5 +1,6 @@
 #pragma once
 #include "board.h"
+#include "scores.h"
 
 typedef struct {
     int width;
@@ -13,6 +14,7 @@ typedef struct {
     int notificationTime;
 
     Board* board;
+    Scores* scores;
 } Menu;
 
 void Menu_create(Menu* menu);

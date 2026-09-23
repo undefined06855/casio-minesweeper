@@ -13,7 +13,7 @@ void Utils_drawSpriteAtPos(enum TileType sprite, int x, int y) {
 }
 
 void Utils_clearAndFillBuffer(unsigned char* buffer, int number) {
-    for (int i = 0; i < 12; i++) buffer[i] = 0;
+    for (int i = 0; i < 12; i++) buffer[i] = '\x00';
     itoa(number, buffer);
 }
 
@@ -36,27 +36,23 @@ int Utils_keyToNumber(int key) {
     return keyToNumberMap[key - 52];
 }
 
-// oh this was chatgpt by the way just letting you all know
-// there is   zero reason to write this myself
-// still wondering if the calculator comes with a random number generator that
-// could probably be seeded better?
+// stdlib.h rand crashed the calculator :heart:
 
-static int rng_state = 1; // seed however you want
+static int rng_state = 1;
 
 int Utils_rand() {
-    // signed wraparound still works as a pseudo-random generator
     rng_state = rng_state * 1664525 + 1013904223;
-    return (rng_state >> 16) & 0x7FFF; // make a positive-ish int
+    return (rng_state >> 16) & 0x7FFF;
 }
 
 void Utils_srand(int seed) {
     rng_state = seed ? seed : 1;
 }
 
-// returns int in [min, max)  (max NOT included)
+// returns int in [min, max)
 int Utils_randrange(int min, int max) {
     int range = max - min;
-    if (range <= 0) return min; // safety
+    if (range <= 0) return min;
 
     int r = Utils_rand() % range;
     if (r < 0) r += range;

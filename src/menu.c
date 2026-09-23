@@ -4,6 +4,7 @@
 #include <fxcg/heap.h>
 #include <fxcg/misc.h>
 #include <fxcg/rtc.h>
+#include <string.h>
 
 void Menu_create(Menu* menu) {
     menu->width = 9;
@@ -21,6 +22,7 @@ void Menu_create(Menu* menu) {
 
 void Menu_free(Menu* menu) {
     if (menu->board) { Board_free(menu->board); }
+    if (menu->scores) { Scores_free(menu->scores); }
     sys_free(menu);
 }
 
@@ -30,7 +32,10 @@ void Menu_draw(Menu* menu) {
         return;
     }
 
-    // TODO: draw a background that shows the board size + mines
+    if (menu->scores) {
+        Scores_draw(menu->scores);
+        return;
+    }
 
     PrintCXY(10, 10, "Setup", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
 
@@ -65,7 +70,9 @@ void Menu_draw(Menu* menu) {
     PrintMini(&x, &y, (const char*)buf, TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     if (menu->width * menu->height != 0) {
         PrintMini(&x, &y, " (", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-        Utils_clearAndFillBuffer(buf, (100*menu->mines) / (menu->width * menu->height));
+        int minePercentage = (menu->mines / ((float)menu->width * menu->height)) * 100;
+        Utils_clearAndFillBuffer(buf, minePercentage);
+        if (minePercentage == 0 && menu->mines != 0) { strcpy((char*)buf, ">1"); }
         PrintMini(&x, &y, (const char*)buf, TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
         PrintMini(&x, &y, "%)", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
         x = 24;
@@ -77,7 +84,9 @@ void Menu_draw(Menu* menu) {
         PrintMini(&x, &y, "%)", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
     }
 
-    PrintCXY(LCD_WIDTH_PX / 2 - 72, LCD_HEIGHT_PX - 80, "Continue", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
+    int continueButtonX = LCD_WIDTH_PX / 2 - 72;
+    int continueButtonY = LCD_HEIGHT_PX - 70;
+    PrintCXY(continueButtonX, continueButtonY, "Continue", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
 
     if (menu->settingRow != 3) {
         // calculator cursor position
@@ -90,8 +99,8 @@ void Menu_draw(Menu* menu) {
             TEXT_COLOR_BLACK
         );
     } else {
-        int x = LCD_WIDTH_PX / 2 - 72;
-        int y = LCD_HEIGHT_PX - 80;
+        int x = continueButtonX;
+        int y = continueButtonY;
 
         Bdisp_Rectangle(
             x - 4, y - 4,
@@ -115,9 +124,9 @@ void Menu_draw(Menu* menu) {
 
         if (menu->width > menu->height) {
             rectWidth = maxRectSize;
-            rectHeight = (maxRectSize * (1000*menu->height / menu->width)) / 1000;
+            rectHeight = maxRectSize * ((float)menu->height / menu->width);
         } else {
-            rectWidth = (maxRectSize * (1000*menu->width / menu->height)) / 1000;
+            rectWidth = maxRectSize * ((float)menu->width / menu->height);
             rectHeight = maxRectSize;
         }
 
@@ -128,7 +137,7 @@ void Menu_draw(Menu* menu) {
         );
 
 
-        int lineCount = ((rectWidth - 4) * (1000*menu->mines / (menu->height * menu->width))) / 1000;
+        int lineCount = (rectWidth - 4) * ((float)menu->mines / (menu->height * menu->width));
         int x = (rectX - rectWidth / 2) + 2;
         for (int i = 0; i < lineCount; i++) {
             Bdisp_Rectangle(
@@ -168,6 +177,12 @@ void Menu_draw(Menu* menu) {
 void Menu_drawStatusArea(Menu* menu) {
     if (menu->board) {
         Board_drawStatusArea(menu->board);
+        return;
+    }
+
+    if (menu->scores) {
+        Scores_drawStatusArea(menu->scores);
+        return;
     }
 
     if (menu->notification) {
@@ -179,7 +194,14 @@ void Menu_drawStatusArea(Menu* menu) {
             menu->notification = 0x0;
             menu->notificationTime = -1;
         }
+
+        return;
     }
+
+    int x = 24;
+    int y = 2;
+    PrintMini(&x, &y, "F1", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+    PrintMini(&x, &y, " - Leaderboard", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
 }
 
 void Menu_handleKeypress(Menu* menu, int key) {
@@ -195,9 +217,20 @@ void Menu_handleKeypress(Menu* menu, int key) {
         return;
     }
 
+    if (menu->scores) {
+        bool shouldExit = Scores_handleKeypress(menu->scores, key);
+        if (shouldExit) {
+            Scores_free(menu->scores);
+            menu->scores = 0x0;
+        }
+
+        return;
+    }
+
     switch (key) {
         case KEY_PRGM_F1: {
-            Menu_begin(menu);
+            menu->scores = sys_malloc(sizeof(Scores));
+            Scores_create(menu->scores);
         } break;
 
         case KEY_PRGM_RETURN: { // misnomer? this is exe key

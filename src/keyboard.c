@@ -27,3 +27,7 @@ int Key_pressed() {
     if (lastKey != currentKey) return currentKey;
     else return 0;
 }
+
+int Key_currentlyPressed() {
+    return currentKey;
+}

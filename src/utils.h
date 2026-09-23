@@ -5,6 +5,7 @@
 #define false 0
 #define bool int
 #define KEY_PRGM_DEL 44
+#define MCS_SUCCESS 0
 
 void Utils_drawSpriteAtPos(enum TileType sprite, int x, int y);
 

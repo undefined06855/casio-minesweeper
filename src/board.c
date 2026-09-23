@@ -1,5 +1,6 @@
 #include "board.h"
 #include "utils.h"
+#include "save.h"
 #include <fxcg/heap.h>
 #include <fxcg/keyboard.h>
 #include <fxcg/display.h>
@@ -84,6 +85,8 @@ void Board_create(Board* board, int width, int height, int mines, bool fake) {
 }
 
 void Board_free(Board* board) {
+    Timer_Stop(board->timer);
+    Timer_Deinstall(board->timer);
     sys_free(board->data);
     sys_free(board);
     globalBoard = 0x0;
@@ -252,7 +255,7 @@ bool Board_handleKeypress(Board* board, int key) {
         board->konamiCodeIndex++;
 
         if (board->konamiCodeIndex == 7) {
-            Board_onGameComplete(board, true);
+            Board_win(board);
             return false;
         }
     }
@@ -401,8 +404,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
         if (!force) return;
     }
 
-    *cell &= ~COVER_TILE_BIT; // unset covered bit
-    *cell &= ~FLAG_TILE_BIT;
+    *cell &= ~(COVER_TILE_BIT | FLAG_TILE_BIT) ; // unset both bits
 
     if (*cell == kTileTypeMine) {
         // uh oh!
@@ -440,6 +442,13 @@ void Board_kablooey(Board* board) {
     }
 
     (*Board_getCell(board, board->row, board->col)) = kTileTypeHitMine;
+}
+
+void Board_win(Board* board) {
+    Board_onGameComplete(board, true);
+
+    Save_writeScore(0x69, board->centiseconds, "test test");
+    Save_save();
 }
 
 void Board_onGameComplete(Board* board, bool won) {
@@ -502,7 +511,7 @@ void Board_checkWinCondition(Board* board) {
     }
 
     // else you win
-    Board_onGameComplete(board, true);
+    Board_win(board);
 }
 
 char* Board_getCell(Board* board, int row, int col) {

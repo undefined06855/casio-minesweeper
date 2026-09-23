@@ -1,11 +1,13 @@
 #include "menu.h"
 #include "utils.h"
 #include "keyboard.h"
+#include "save.h"
 #include <fxcg/display.h>
 #include <fxcg/keyboard.h>
 #include <fxcg/heap.h>
 #include <fxcg/system.h>
 #include <fxcg/rtc.h>
+#include <fxcg/file.h>
 
 int main() {
     Bdisp_AllClr_VRAM();
@@ -22,6 +24,7 @@ int main() {
 
     Utils_initKeyToNumberMap();
 
+    Save_load();
 
     Menu* menu = sys_malloc(sizeof(Menu));
     Menu_create(menu);

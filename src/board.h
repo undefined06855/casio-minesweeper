@@ -46,8 +46,9 @@ void Board_flag(Board* board, int row, int col);
 void Board_revealSurroundingCells(Board* board, int row, int col);
 void Board_revealSingleCell(Board* board, int row, int col, bool force);
 void Board_checkWinCondition(Board* board);
-void Board_kablooey(Board* board);
 
+void Board_kablooey(Board* board);
+void Board_win(Board* board);
 void Board_onGameComplete(Board* board, bool won);
 
 void Board_runForSurroundingCells(Board* board, int row, int col, void(*callback)(Board*, int, int, void*), void* data);
