@@ -7,12 +7,11 @@
 #include <string.h>
 
 void Menu_create(Menu* menu) {
-    menu->width = 9;
-    menu->height = 9;
-    menu->mines = 10;
+    menu->preset = PresetTypeEasy;
+    Menu_applyPreset(menu);
 
     menu->settingCursorPosition = 0;
-    menu->settingRow = 0;
+    menu->settingRow = SettingRowPreset;
 
     menu->notification = 0x0;
     menu->notificationTime = -1;
@@ -37,37 +36,53 @@ void Menu_draw(Menu* menu) {
         return;
     }
 
-    PrintCXY(10, 10, "Setup", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
+    PrintCXY(10, 10, "Minesweeper", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
+
+    int versionX = 213;
+    int versionY = 10;
+    PrintMiniMini(&versionX, &versionY, (const char*)"v1.0.1", 0, TEXT_COLOR_BLACK, false);
 
     // PrintMini(&x, &y, "F1", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     // PrintMini(&x, &y, " - Continue", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
 
     unsigned char buf[12];
-    int x = 24;
+    int x = 90;
     int y = 50;
-    int cursorStartPositions[3];
+    int cursorStartXs[SettingRowMax];
+    int cursorStartYs[SettingRowMax];
 
     int charWidth = 0;
     PrintMini(&charWidth, &y, "0", TEXT_MODE_NORMAL, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, false, 0);
 
+    int presetRowStartX = x;
+    int presetRowY = y;
+    PrintMini(&x, &y, "< ", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+    PrintMini(&x, &y, Menu_getPresetName(menu), TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, Menu_getPresetColor(menu), COLOR_WHITE, true, 0);
+    PrintMini(&x, &y, " >", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
+    int presetRowEndX = x;
+
+    x = 24;
+    y += 30;
+
     PrintMini(&x, &y, "width: ", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-    cursorStartPositions[0] = x;
+    cursorStartXs[SettingRowWidth] = x; cursorStartYs[SettingRowWidth] = y;
     Utils_clearAndFillBuffer(buf, menu->width);
     PrintMini(&x, &y, (const char*)buf, TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     x = 24;
     y += 24;
 
     PrintMini(&x, &y, "height: ", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-    cursorStartPositions[1] = x;
+    cursorStartXs[SettingRowHeight] = x; cursorStartYs[SettingRowHeight] = y;
     Utils_clearAndFillBuffer(buf, menu->height);
     PrintMini(&x, &y, (const char*)buf, TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
     x = 24;
     y += 24;
 
     PrintMini(&x, &y, "mines: ", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
-    cursorStartPositions[2] = x;
+    cursorStartXs[SettingRowMines] = x; cursorStartYs[SettingRowMines] = y;
     Utils_clearAndFillBuffer(buf, menu->mines);
     PrintMini(&x, &y, (const char*)buf, TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
+
     if (menu->width * menu->height != 0) {
         PrintMini(&x, &y, " (", TEXT_MODE_TRANSPARENT_BACKGROUND, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
         int minePercentage = (menu->mines / ((float)menu->width * menu->height)) * 100;
@@ -85,28 +100,41 @@ void Menu_draw(Menu* menu) {
     }
 
     int continueButtonX = LCD_WIDTH_PX / 2 - 72;
-    int continueButtonY = LCD_HEIGHT_PX - 70;
-    PrintCXY(continueButtonX, continueButtonY, "Continue", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
+    int continueButtonY = LCD_HEIGHT_PX - 60;
+    PrintCXY(continueButtonX, continueButtonY, "Start!", TEXT_MODE_TRANSPARENT_BACKGROUND, -1, COLOR_BLACK, COLOR_WHITE, true, 0);
 
-    if (menu->settingRow != 3) {
-        // calculator cursor position
-        int x = cursorStartPositions[menu->settingRow] + Menu_getCurrentSettingValueLength(menu) * charWidth - menu->settingCursorPosition * charWidth;
-        int y = menu->settingRow * 24 + 50;
+    int pad = 4; // pad for the rectangles around buttons
+    switch (menu->settingRow) {
+        case SettingRowPreset: {
+            Bdisp_Rectangle(
+                presetRowStartX - pad, presetRowY - pad,
+                presetRowEndX + pad, presetRowY + 18 + pad,
+                TEXT_COLOR_BLACK
+            );
+        } break;
 
-        Bdisp_Rectangle(
-            x, y,
-            x + 1, y + 18,
-            TEXT_COLOR_BLACK
-        );
-    } else {
-        int x = continueButtonX;
-        int y = continueButtonY;
+        case SettingRowContinue: {
+            int x = continueButtonX;
+            int y = continueButtonY;
 
-        Bdisp_Rectangle(
-            x - 4, y - 4,
-            x + 8*18 + 4, y + 18 + 4,
-            TEXT_COLOR_BLACK
-        );
+            Bdisp_Rectangle(
+                x - pad, y - pad,
+                x + 6*18 + pad, y + 18 + pad,
+                TEXT_COLOR_BLACK
+            );
+        } break;
+
+        default: {
+            // calculator cursor position
+            int x = cursorStartXs[menu->settingRow] + Menu_getCurrentSettingValueLength(menu) * charWidth - menu->settingCursorPosition * charWidth;
+            int y = cursorStartYs[menu->settingRow];
+
+            Bdisp_Rectangle(
+                x, y,
+                x + 1, y + 18,
+                TEXT_COLOR_BLACK
+            );
+        }
     }
 
     int rectX = LCD_WIDTH_PX * 0.8 - 20;
@@ -234,23 +262,24 @@ void Menu_handleKeypress(Menu* menu, int key) {
         } break;
 
         case KEY_PRGM_RETURN: { // misnomer? this is exe key
-            menu->settingRow++;
-            if (menu->settingRow > 3) {
-                menu->settingRow = 3;
+            if (menu->settingRow == SettingRowContinue) {
                 Menu_begin(menu);
+                break;
             }
+
+            menu->settingRow++;
         } break;
 
         case KEY_PRGM_UP: {
             menu->settingRow--;
             menu->settingCursorPosition = 0;
-            if (menu->settingRow < 0) menu->settingRow++;
+            if (menu->settingRow < SettingRowPreset) menu->settingRow++;
         } break;
 
         case KEY_PRGM_DOWN: {
             menu->settingRow++;
             menu->settingCursorPosition = 0;
-            if (menu->settingRow > 3) menu->settingRow--;
+            if (menu->settingRow > SettingRowContinue) menu->settingRow--;
         } break;
 
         case KEY_PRGM_DEL:
@@ -272,7 +301,27 @@ void Menu_handleKeypress(Menu* menu, int key) {
 }
 
 void Menu_handleTextKeypress(Menu* menu, int key) {
-    if (!Menu_getCurrentSetting(menu)) return;
+    if (menu->settingRow == SettingRowPreset) {
+        switch (key) {
+            case KEY_PRGM_LEFT: {
+                menu->preset--;
+                if (menu->preset < PresetTypeEasy) menu->preset = PresetTypeHard;
+                Menu_applyPreset(menu);
+            } break;
+
+            case KEY_PRGM_RIGHT: {
+                menu->preset++;
+                if (menu->preset > PresetTypeHard) menu->preset = PresetTypeEasy;
+                Menu_applyPreset(menu);
+            } break;
+        }
+
+        return;
+    }
+
+    if (menu->settingRow == SettingRowContinue) {
+        return;
+    }
 
     // settingCursorPosition is zero if the cursor is at the very right!!!
 
@@ -329,6 +378,30 @@ void Menu_handleTextKeypress(Menu* menu, int key) {
     }
 }
 
+void Menu_applyPreset(Menu* menu) {
+    switch (menu->preset) {
+        case PresetTypeEasy: {
+            menu->width = 9;
+            menu->height = 9;
+            menu->mines = 10;
+        } break;
+
+        case PresetTypeMedium: {
+            menu->width = 16;
+            menu->height = 16;
+            menu->mines = 40;
+        } break;
+
+        case PresetTypeHard: {
+            menu->width = 30;
+            menu->height = 16;
+            menu->mines = 99;
+        } break;
+
+        default: break;
+    }
+}
+
 void Menu_fixMineCount(Menu* menu) {
     if (menu->mines > (menu->width * menu->height) * 0.9) {
         menu->mines = (menu->width * menu->height) * 0.9;
@@ -360,16 +433,15 @@ void Menu_begin(Menu* menu) {
 
 int* Menu_getCurrentSetting(Menu* menu) {
     switch (menu->settingRow) {
-        case 0: return &menu->width;
-        case 1: return &menu->height;
-        case 2: return &menu->mines;
+        case SettingRowWidth: return &menu->width;
+        case SettingRowHeight: return &menu->height;
+        case SettingRowMines: return &menu->mines;
+        default: return (void*)menu->settingRow;
     }
-
-    return 0x0;
 }
 
 int Menu_getCurrentSettingValueLimit(Menu* menu) {
-    if (menu->settingRow == 2) return 3;
+    if (menu->settingRow == SettingRowMines) return 3;
     else return 2;
 }
 
@@ -382,4 +454,22 @@ int Menu_getCurrentSettingValueLength(Menu* menu) {
     if (value < 10000) return 4;
     if (value < 100000) return 5;
     return 6;
+}
+
+const char* Menu_getPresetName(Menu* menu) {
+    switch (menu->preset) {
+        case PresetTypeEasy: return "Easy";
+        case PresetTypeMedium: return "Medium";
+        case PresetTypeHard: return "Hard";
+        default: return "???";
+    }
+}
+
+int Menu_getPresetColor(Menu* menu) {
+    switch (menu->preset) {
+        case PresetTypeEasy: return COLOR_GREEN;
+        case PresetTypeMedium: return COLOR_ORANGE;
+        case PresetTypeHard: return COLOR_RED;
+        default: return COLOR_BLACK;
+    }
 }
