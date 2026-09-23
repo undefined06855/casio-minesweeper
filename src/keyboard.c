@@ -10,17 +10,12 @@ int currentKey;
 // though if we really cared about battery we wouldnt be using 16 bit colours..
 
 void Key_update() {
+    // handle the MENU button... though this doesn't seem to work!
+    // int _; int __; unsigned short ___;
+    // GetKeyWait_OS(&_, &__, KEYWAIT_HALTON_TIMERON, 0, false, &___);
+
     lastKey = currentKey;
     currentKey = PRGM_GetKey(); // non-blocking impl from sdk
-
-    // TODO: this doesnt work + backlight + auto power off?
-    // and also usb but no clue what i should do for that
-    switch (Key_pressed()) {
-        case KEY_PRGM_MENU: {
-            // int _;
-            // GetKey(&_);
-        } break;
-    }
 }
 
 int Key_pressed() {
