@@ -3,6 +3,7 @@
 
 typedef struct {
     const char* notification;
+    int scroll;
 } Scores;
 
 void Scores_create(Scores* scores);

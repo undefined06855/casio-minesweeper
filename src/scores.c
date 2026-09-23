@@ -4,10 +4,12 @@
 #include <fxcg/heap.h>
 #include <fxcg/misc.h>
 #include <fxcg/file.h>
-#include <string.h>
+
+#define SCORE_CELL_HEIGHT 40
 
 void Scores_create(Scores* scores) {
     scores->notification = 0x0;
+    scores->scroll = 0;
 }
 
 void Scores_free(Scores* scores) {
@@ -18,12 +20,15 @@ void Scores_draw(Scores* scores) {
     int count = Save_getCount();
     unsigned char buf[12];
 
+    int y = scores->scroll;
+
     for (int i = 0; i < count; i++) {
         Score* score = Save_getAtIndex(i);
 
         int seconds = score->centiseconds / 10;
         int centiseconds = score->centiseconds % 10;
 
+        // TODO: finish this
         locate_OS(1, i+1);
         Print_OS((const char*)score->name, 0, 0);
         Print_OS(" ", 0, 0);
@@ -33,7 +38,7 @@ void Scores_draw(Scores* scores) {
         Print_OS(".", 0, 0);
         Utils_clearAndFillBuffer(buf, centiseconds);
         Print_OS((const char*)buf, 0, 0);
-        Print_OS(".", 0, 0);
+        Print_OS("s", 0, 0);
     }
 }
 
@@ -57,45 +62,20 @@ void Scores_drawStatusArea(Scores* scores) {
 
 bool Scores_handleKeypress(Scores* scores, int key) {
     switch (key) {
+        case KEY_PRGM_UP: {
+            scores->scroll -= 30;
+            if (scores->scroll < 0) scores->scroll = 0;
+        } break;
+
+        case KEY_PRGM_DOWN: {
+            int max = SCORE_CELL_HEIGHT * Save_getCount() - LCD_HEIGHT_PX;
+            scores->scroll += 30;
+            if (scores->scroll < max) scores->scroll = max;
+        } break;
+
         case KEY_PRGM_F6: {
             Save_reset();
             Save_save();
-        } break;
-
-        case KEY_PRGM_5: {
-            int len;
-            if (MCSGetDlen2(SAVE_DIR, SAVE_FILE, &len) != MCS_SUCCESS) {
-                // file doesnt exist yet
-                scores->notification = "MainMem file does not exist!";
-                break;
-            }
-
-            byte* buf = sys_malloc(len);
-
-            if (MCSGetData1(0, len, buf) != MCS_SUCCESS) {
-                // uhhhh
-                scores->notification = "Failed to read MainMem file data!";
-                break;
-            }
-
-            // copy buffer to file for debugging
-            const char* filePath = "\\fls0\\debug.bin";
-            int filePathSize = 15;
-            size_t len2 = len;
-
-            unsigned short doubleSizeFileName[filePathSize];
-            Bfile_StrToName_ncpy(doubleSizeFileName, filePath, filePathSize);
-            int ret = Bfile_CreateEntry_OS(doubleSizeFileName, 1, &len2);
-            if (ret < 0) { scores->notification = "Failed to create file!"; break; }
-
-            int fileHandle = Bfile_OpenFile_OS(doubleSizeFileName, 3, 0);
-            if (fileHandle < 0) { scores->notification = "Failed to get file handle!"; break; }
-            ret = Bfile_WriteFile_OS(fileHandle, buf, len2);
-            if (ret < 0) { scores->notification = "Failed to write file!"; break; }
-
-            sys_free(buf);
-
-            scores->notification = "Saved as debug.bin";
         } break;
 
         case KEY_PRGM_EXIT: {
