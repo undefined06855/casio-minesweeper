@@ -48,6 +48,7 @@ void Board_create(Board* board, int width, int height, int mines, bool fake) {
     board->lost = false;
 
     board->firstReveal = true;
+    board->inputtedAnything = false;
 
     board->startTicks = RTC_GetTicks();
     board->endTicks = -1;
@@ -142,7 +143,7 @@ void Board_drawStatusArea(Board* board) {
 
     // draw status bar help text for the first 5 seconds
     // else draw information
-    if (!RTC_Elapsed_ms(board->startTicks, 5000)) {
+    if (!board->inputtedAnything) {
         PrintMini(&x, &y, "F1", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
         PrintMini(&x, &y, " - Flag | ", 1 << 6, 0xffffffff, 0, 0, COLOR_BLACK, COLOR_WHITE, true, 0);
         PrintMini(&x, &y, "F6", 1 << 6, 0xffffffff, 0, 0, COLOR_NAVY, COLOR_WHITE, true, 0);
@@ -228,8 +229,8 @@ void Board_drawEndAnimation(Board* board) {
     const char* str;
     int speed;
 
-    if (board->won)  str = "GAME COMPLETE!";
-    else             str = "GAME OVER!";
+    if (board->won) str = "GAME COMPLETE!";
+    else            str = "GAME OVER!";
 
     if (board->won) speed = 100;
     else            speed = 20;
@@ -323,31 +324,29 @@ void Board_updateOffset(Board* board) {
     int bottom = top + 24;
 
     if (board->width * 24 + 24 > LCD_WIDTH_PX) {
-        while (left < pad) {
-            board->offsetX--;
-            left = 24 * board->col + board->offsetX + board->shakeX;
+        if (left < pad) {
+            board->offsetX += pad - left;
         }
 
-        while (right > LCD_WIDTH_PX - pad) {
-            board->offsetX++;
-            right = 24 * board->col + board->offsetX + board->shakeX + 24;
+        if (right > LCD_WIDTH_PX - pad) {
+            board->offsetX -= right - (LCD_WIDTH_PX - pad);
         }
     }
 
     if (board->height * 24 + 24 > LCD_HEIGHT_PX) {
-        while (top < pad) {
-            board->offsetY++;
-            top = 24 * board->row + board->offsetY + board->shakeY;
+        if (top < pad) {
+            board->offsetY += pad - top;
         }
 
-        while (bottom > LCD_HEIGHT_PX - pad) {
-            board->offsetY--;
-            bottom = 24 * board->row + board->offsetY + board->shakeY + 24;
+        if (bottom > LCD_HEIGHT_PX - pad) {
+            board->offsetY -= bottom - (LCD_HEIGHT_PX - pad);
         }
     }
 }
 
 void Board_flag(Board* board, int row, int col) {
+    board->inputtedAnything = true;
+
     byte* cell = Board_getCell(board, row, col);
 
     if (!Board_cellIsCovered(cell)) {
@@ -359,6 +358,8 @@ void Board_flag(Board* board, int row, int col) {
 }
 
 void Board_revealSingleCell(Board* board, int row, int col, bool force) {
+    board->inputtedAnything = true;
+
     byte* cell = Board_getCell(board, row, col);
 
     if (board->firstReveal) {

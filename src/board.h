@@ -20,6 +20,7 @@ typedef struct {
     bool won;
 
     bool firstReveal;
+    bool inputtedAnything;
 
     int timer;
     int centiseconds;
