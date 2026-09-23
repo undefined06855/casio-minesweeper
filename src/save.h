@@ -10,8 +10,8 @@ typedef struct {
     struct Score* next;
 } Score;
 
-Score* Score_loadFromData(char* buffer, int* offset, Score* previous);
-Score* Score_saveToBuffer(Score* score, char* buffer, int* offset);
+Score* Score_loadFromData(byte* buffer, int* offset, Score* previous);
+Score* Score_saveToBuffer(Score* score, byte* buffer, int* offset);
 
 void Save_load();
 void Save_save();

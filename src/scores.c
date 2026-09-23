@@ -63,7 +63,7 @@ bool Scores_handleKeypress(Scores* scores, int key) {
                 break;
             }
 
-            char* buf = sys_malloc(len);
+            byte* buf = sys_malloc(len);
 
             if (MCSGetData1(0, len, buf) != MCS_SUCCESS) {
                 // uhhhh

@@ -11,9 +11,22 @@
 // used in the timer
 Board* globalBoard;
 
+void _revealCellIfNotFlagged(Board* board, int row, int col, void* _unused) {
+    byte* cell = Board_getCell(board, row, col);
+    if (!Board_cellIsFlagged(cell) && Board_cellIsCovered(cell)) {
+        Board_revealSingleCell(board, row, col, true);
+    }
+}
+
+void _incrementFlagCount(Board* board, int row, int col, void* flagCount) {
+    if (*Board_getCell(board, row, col) & FLAG_TILE_BIT) {
+        (*(byte*)flagCount)++;
+    }
+}
+
 void _incrementMineCount(Board* board, int row, int col, void* mineCount) {
     if (*Board_getCell(board, row, col) == (kTileTypeMine | COVER_TILE_BIT)) {
-        (*(char*)mineCount)++;
+        (*(byte*)mineCount)++;
     }
 }
 
@@ -57,7 +70,7 @@ void Board_create(Board* board, int width, int height, int mines, bool fake) {
         int row = Utils_randrange(0, height);
         int col = Utils_randrange(0, width);
 
-        char* cell = Board_getCell(board, row, col);
+        byte* cell = Board_getCell(board, row, col);
 
         if (*cell == (kTileTypeMine | COVER_TILE_BIT)) {
             i--;
@@ -70,11 +83,11 @@ void Board_create(Board* board, int width, int height, int mines, bool fake) {
     // and place other tiles around the mines
     for (int row = 0; row < height; row++) {
         for (int col = 0; col < width; col++) {
-            char* cell = Board_getCell(board, row, col);
+            byte* cell = Board_getCell(board, row, col);
 
             if (*cell == (kTileTypeMine | COVER_TILE_BIT)) continue;
 
-            char mineCount = 0;
+            byte mineCount = 0;
             Board_runForSurroundingCells(board, row, col, _incrementMineCount, &mineCount);
 
             *cell = mineCount | COVER_TILE_BIT;
@@ -335,7 +348,7 @@ void Board_updateOffset(Board* board) {
 }
 
 void Board_flag(Board* board, int row, int col) {
-    char* cell = Board_getCell(board, row, col);
+    byte* cell = Board_getCell(board, row, col);
 
     if (!Board_cellIsCovered(cell)) {
         // you shouldnt be able to flag revealed cells
@@ -345,21 +358,8 @@ void Board_flag(Board* board, int row, int col) {
     *cell ^= FLAG_TILE_BIT;
 }
 
-void _revealCellIfNotFlagged(Board* board, int row, int col, void* _unused) {
-    char* cell = Board_getCell(board, row, col);
-    if (!Board_cellIsFlagged(cell) && Board_cellIsCovered(cell)) {
-        Board_revealSingleCell(board, row, col, true);
-    }
-}
-
-void _incrementFlagCount(Board* board, int row, int col, void* flagCount) {
-    if (*Board_getCell(board, row, col) & FLAG_TILE_BIT) {
-        (*(char*)flagCount)++;
-    }
-}
-
 void Board_revealSingleCell(Board* board, int row, int col, bool force) {
-    char* cell = Board_getCell(board, row, col);
+    byte* cell = Board_getCell(board, row, col);
 
     if (board->firstReveal) {
         // oooh exciting exciting
@@ -386,7 +386,7 @@ void Board_revealSingleCell(Board* board, int row, int col, bool force) {
     // if it's not covered, count surrounding mines
     // then if it's equal to the value on the tile, auto reveal non-flagged cells
     if (!Board_cellIsCovered(cell) && *cell != kTileTypeZero) {
-        char flagCount = 0;
+        byte flagCount = 0;
         Board_runForSurroundingCells(board, row, col, _incrementFlagCount, &flagCount);
 
         if (*cell == flagCount) {
@@ -426,7 +426,7 @@ void Board_kablooey(Board* board) {
 
     // set certain tiles to special ones
     for (int i = 0; i < board->width * board->height; i++) {
-        char* cell = &board->data[i];
+        byte* cell = &board->data[i];
 
         // mark all incorrect flags
         if (Board_cellIsFlagged(cell) && *cell != (kTileTypeMine | COVER_TILE_BIT | FLAG_TILE_BIT)) {
@@ -492,11 +492,11 @@ void Board_runForSurroundingCells(Board* board, int row, int col, void(*callback
     }
 }
 
-bool Board_cellIsFlagged(char* cell) {
+bool Board_cellIsFlagged(byte* cell) {
     return *cell & FLAG_TILE_BIT;
 }
 
-bool Board_cellIsCovered(char* cell) {
+bool Board_cellIsCovered(byte* cell) {
     return *cell & COVER_TILE_BIT;
 }
 
@@ -514,7 +514,7 @@ void Board_checkWinCondition(Board* board) {
     Board_win(board);
 }
 
-char* Board_getCell(Board* board, int row, int col) {
+byte* Board_getCell(Board* board, int row, int col) {
     return &board->data[row*board->width + col];
 }
 

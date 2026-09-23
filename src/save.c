@@ -3,22 +3,21 @@
 #include <fxcg/file.h>
 #include <fxcg/heap.h>
 #include <string.h>
-#include <stdint.h>
 
 #define RECORD_NAME_LEN 16
 #define RECORD_SIZE (RECORD_NAME_LEN + 1 + 4)
 
-static void write_fixed_name(char* dst16, const char* src) {
+static void write_fixed_name(byte* dst16, const char* src) {
     // Zero-pad and ensure at least one terminator within 16 bytes
     memset(dst16, 0, RECORD_NAME_LEN);
     if (src) {
-        strncpy(dst16, src, RECORD_NAME_LEN - 1);
+        strncpy((char*)dst16, src, RECORD_NAME_LEN - 1);
     }
 }
 
 Score* first;
 
-Score* Score_loadFromData(char* buffer, int* offset, Score* previous) {
+Score* Score_loadFromData(byte* buffer, int* offset, Score* previous) {
     Score* score = sys_malloc(sizeof(Score));
 
     score->name = sys_malloc(RECORD_NAME_LEN);
@@ -43,7 +42,7 @@ Score* Score_loadFromData(char* buffer, int* offset, Score* previous) {
 }
 
 // returns the next score so it can be chained
-Score* Score_saveToBuffer(Score* score, char* buffer, int* offset) {
+Score* Score_saveToBuffer(Score* score, byte* buffer, int* offset) {
     write_fixed_name(&buffer[*offset], score->name);
     buffer[*offset + RECORD_NAME_LEN] = score->size;
 
@@ -95,7 +94,7 @@ void Save_save() {
 
     int size = count * RECORD_SIZE;
 
-    char* buffer = sys_malloc(size);
+    byte* buffer = sys_malloc(size);
     if (!buffer) return;
 
     int offset = 0;
