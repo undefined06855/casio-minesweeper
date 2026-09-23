@@ -236,6 +236,7 @@ void Board_drawEndAnimation(Board* board) {
     if (board->won) speed = 100;
     else            speed = 20;
 
+    // TODO: improve this animation, perhaps animate in circles with the sine/cosine functions?
     for (int i = 0; i < RAINBOW_LENGTH+1; i++) {
         color_t col;
         if (i == RAINBOW_LENGTH) col = COLOR_BLACK;
@@ -452,7 +453,8 @@ void Board_win(Board* board) {
     Score* score = Save_writeScore();
     if (!score) return;
 
-    sys_strncpy(score->name, "john sweeper", 16);
+    // TODO: finish this!! allow name input for new best for a certain size
+    sys_strncpy(score->name, "john sweeper", sizeof(score->name));
     score->width = board->width;
     score->height = board->height;
     score->centiseconds = board->centiseconds;
