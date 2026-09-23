@@ -1,8 +1,5 @@
 #pragma once
 
-#define SAVE_DIR (unsigned char*)"Minesweeper"
-#define SAVE_FILE (unsigned char*)"scores"
-
 typedef struct {
     char name[16];
     int width;

@@ -1,50 +1,51 @@
 #include "save.h"
-#include "utils.h"
 #include <fxcg/file.h>
 #include <fxcg/heap.h>
 
 Score* Save_data = 0x0;
 int Save_count = 0;
 
-void Save_load() {
-    // MCSDelVar2(SAVE_DIR, SAVE_FILE);
+#define SAVE_FILE_NAME "sweeper_scores.bin"
+#define SAVE_FILE_NAME_LEN (sizeof(SAVE_FILE_NAME) - 1)
 
-    int len;
-    if (MCSGetDlen2(SAVE_DIR, SAVE_FILE, &len) != MCS_SUCCESS || len <= 0) {
-        // file doesnt exist yet
+void Save_load() {
+    unsigned short name[SAVE_FILE_NAME_LEN];
+    Bfile_StrToName_ncpy(name, SAVE_FILE_NAME, SAVE_FILE_NAME_LEN);
+
+    int handle = Bfile_OpenFile_OS(name, READ, 0);
+    int len = Bfile_GetFileSize_OS(handle);
+
+    if (handle < 0 || len <= 0) {
         return;
     }
 
     Save_data = sys_malloc(len);
     Save_count = len / sizeof(Score);
-    if (!Save_data) return;
 
-    if (MCSGetData1(0, len, Save_data) != MCS_SUCCESS) {
-        sys_free(Save_data);
-        Save_data = 0x0;
-        Save_count = 0;
-        return;
-    }
+    Bfile_ReadFile_OS(handle, &Save_data, len, -1);
+    Bfile_CloseFile_OS(handle);
 }
 
 void Save_unload() {
     if (Save_data == 0x0) return;
     sys_free(Save_data);
+    Save_data = 0x0;
 }
 
 void Save_save() {
     if (Save_data == 0x0) return;
 
-    int count = Save_getCount();
-    if (count == 0) {
-        MCS_CreateDirectory(SAVE_DIR);
-        MCSDelVar2(SAVE_DIR, SAVE_FILE);
-        return;
-    }
+    unsigned short name[SAVE_FILE_NAME_LEN];
+    Bfile_StrToName_ncpy(name, SAVE_FILE_NAME, SAVE_FILE_NAME_LEN);
 
-    MCS_CreateDirectory(SAVE_DIR);
-    MCSDelVar2(SAVE_DIR, SAVE_FILE);
-    MCSPutVar2(SAVE_DIR, SAVE_FILE, Save_count * sizeof(Score), Save_data);
+    Bfile_DeleteEntry(name);
+
+    unsigned int size = Save_count * sizeof(Score);
+    Bfile_CreateEntry_OS(name, CREATEMODE_FILE, &size);
+
+    int handle = Bfile_OpenFile_OS(name, WRITE, 0);
+    Bfile_WriteFile_OS(handle, Save_data, size);
+    Bfile_CloseFile_OS(handle);
 }
 
 void Save_reset() {
