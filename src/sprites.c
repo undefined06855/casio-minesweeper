@@ -72,7 +72,7 @@ const color_t* sprites[MAX_SPRITE_COUNT] = {
     spr_flaggedWrong
 };
 
-const color_t* getSprite(enum TileType sprite) {
+const color_t* getSprite(TileType sprite) {
     if (sprite >= MAX_SPRITE_COUNT) return 0x0;
 
     return sprites[sprite];

@@ -2,7 +2,7 @@
 #include <fxcg/keyboard.h>
 #include <fxcg/misc.h>
 
-void Utils_drawSpriteAtPos(enum TileType sprite, int x, int y) {
+void Utils_drawSpriteAtPos(TileType sprite, int x, int y) {
     const color_t* data = getSprite(sprite);
 
     if (data == 0x0) {

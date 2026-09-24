@@ -7,7 +7,7 @@
 
 typedef unsigned char byte;
 
-void Utils_drawSpriteAtPos(enum TileType sprite, int x, int y);
+void Utils_drawSpriteAtPos(TileType sprite, int x, int y);
 
 void Utils_clearAndFillBuffer(unsigned char* buffer, int number);
 

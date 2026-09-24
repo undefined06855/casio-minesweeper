@@ -6,7 +6,7 @@
 static const int COVER_TILE_BIT = 1 << 4;
 static const int FLAG_TILE_BIT = 1 << 5;
 
-enum TileType {
+typedef enum {
     kTileTypeZero = 0,
     kTileTypeOne = 1,
     kTileTypeTwo = 2,
@@ -20,6 +20,6 @@ enum TileType {
 
     kTileTypeIncorrectFlag = MAX_SPRITE_COUNT - 1,
     kTileTypeHitMine = MAX_SPRITE_COUNT - 2
-};
+} TileType;
 
-const color_t* getSprite(enum TileType sprite);
+const color_t* getSprite(TileType sprite);
