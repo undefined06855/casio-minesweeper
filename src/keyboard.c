@@ -10,10 +10,6 @@ int currentKey;
 // though if we really cared about battery we wouldnt be using 16 bit colours..
 
 void Key_update() {
-    // handle the MENU button... though this doesn't seem to work!
-    // int _; int __; unsigned short ___;
-    // GetKeyWait_OS(&_, &__, KEYWAIT_HALTON_TIMERON, 0, false, &___);
-
     lastKey = currentKey;
     currentKey = PRGM_GetKey(); // non-blocking impl from sdk
 }
@@ -25,4 +21,33 @@ int Key_pressed() {
 
 int Key_currentlyPressed() {
     return currentKey;
+}
+
+// thanks to parisse on the cemetech forums
+
+int menuTimer = 0;
+void Key_sendMenuKey(){
+    Timer_Stop(menuTimer);
+    Timer_Deinstall(menuTimer);
+    menuTimer = 0;
+
+    // OS_InnerWait_ms(50);
+    // menu row 9 col 4
+    // Keyboard_PutKeycode(4,9,KEY_CTRL_MENU);
+    // keycode is ignored if arg1 and arg2 are >0
+#ifdef MPM
+    Keyboard_PutKeycode(6, 10, 0);
+#else
+    // Keyboard_PutKeycode(4, 9, 0);
+    Keyboard_PutKeycode(-1, -1, KEY_CTRL_MENU);
+#endif
+}
+
+void Key_simulateMenuPress() {
+    if (menuTimer) return;
+    menuTimer = Timer_Install(0, Key_sendMenuKey, 10);
+    Timer_Start(menuTimer);
+
+    int _;
+    GetKey(&_);
 }

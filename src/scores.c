@@ -1,9 +1,11 @@
 #include "scores.h"
 #include "save.h"
+#include "utils.h"
 #include <fxcg/keyboard.h>
 #include <fxcg/heap.h>
 #include <fxcg/misc.h>
 #include <fxcg/file.h>
+#include <fxcg/display.h>
 
 #define SCORE_CELL_HEIGHT 40
 
@@ -30,7 +32,7 @@ void Scores_draw(Scores* scores) {
 
         // TODO: finish this
         locate_OS(1, i+1);
-        Print_OS((const char*)score->name, 0, 0);
+        Print_OS(score->name, 0, 0);
         Print_OS(" ", 0, 0);
 
         Utils_clearAndFillBuffer(buf, seconds);

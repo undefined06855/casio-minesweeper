@@ -1,5 +1,5 @@
 #pragma once
-#include "utils.h"
+#include <stdbool.h>
 
 typedef struct {
     const char* notification;

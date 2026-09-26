@@ -5,8 +5,8 @@
 Score* Save_data = 0x0;
 int Save_count = 0;
 
-#define SAVE_FILE_NAME "sweeper_scores.bin"
-#define SAVE_FILE_NAME_LEN (sizeof(SAVE_FILE_NAME) - 1)
+#define SAVE_FILE_NAME "\\\\fls0\\sweeper_scores.bin"
+#define SAVE_FILE_NAME_LEN sizeof(SAVE_FILE_NAME)
 
 void Save_load() {
     unsigned short name[SAVE_FILE_NAME_LEN];

@@ -47,9 +47,6 @@ int main() {
         Menu_drawStatusArea(menu);
 
         Bdisp_PutDisp_DD();
-
-        // TODO: make this better
-        if (Key_pressed() == KEY_PRGM_MENU) break;
     }
 
     Menu_free(menu);

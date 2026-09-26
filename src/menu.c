@@ -1,4 +1,5 @@
 #include "menu.h"
+#include "keyboard.h"
 #include "utils.h"
 #include <fxcg/keyboard.h>
 #include <fxcg/heap.h>
@@ -233,6 +234,11 @@ void Menu_drawStatusArea(Menu* menu) {
 }
 
 void Menu_handleKeypress(Menu* menu, int key) {
+    if (key == KEY_PRGM_MENU) {
+        Key_simulateMenuPress();
+        return;
+    }
+
     if (menu->board) {
         bool shouldExit = Board_handleKeypress(menu->board, key);
         if (shouldExit) {
