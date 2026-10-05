@@ -17,7 +17,7 @@ typedef enum {
     SettingRowMines = 3,
     SettingRowContinue = 4,
 
-    SettingRowMax, _MakeSettingRowMaxSigned = -1
+    SettingRowMax, _MakeSettingRowSigned = -1
 } SettingRow;
 
 typedef struct {
